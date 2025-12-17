@@ -1,0 +1,37 @@
+# Trading Bot Dependencies
+# =========================
+
+# Exchange API clients
+ccxt==4.2.0                    # Universal crypto exchange API
+python-binance==1.0.19         # Binance specific client
+
+# Data Analysis & ML
+pandas==2.1.4                  # Data manipulation
+numpy==1.26.2                  # Numerical computing
+scikit-learn==1.3.2            # Machine learning
+ta==0.11.0                     # Technical analysis indicators
+ta-lib==0.4.28                 # Advanced technical analysis (requires TA-Lib C library)
+
+# Deep Learning (optional, for advanced models)
+tensorflow==2.15.0             # Neural networks
+keras==3.0.0                   # High-level neural network API
+
+# Visualization
+matplotlib==3.8.2              # Plotting
+plotly==5.18.0                 # Interactive charts
+
+# Utilities
+python-dotenv==1.0.0           # Environment variables
+schedule==1.2.1                # Job scheduling
+requests==2.31.0               # HTTP requests
+websocket-client==1.7.0        # WebSocket connections
+
+# Logging & Monitoring
+loguru==0.7.2                  # Advanced logging
+
+# Database (for storing trades history)
+sqlalchemy==2.0.23             # SQL toolkit
+sqlite3                        # Included in Python
+
+# Testing
+pytest==7.4.3                  # Testing framework
