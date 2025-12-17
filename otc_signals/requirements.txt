@@ -1,0 +1,13 @@
+# OTC Market Signal Generator
+# Dependencias principales
+
+pandas>=2.0.0
+numpy>=1.24.0
+yfinance>=0.2.30
+ccxt>=4.0.0
+ta>=0.10.2
+plotly>=5.15.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+rich>=13.5.0
+schedule>=1.2.0
