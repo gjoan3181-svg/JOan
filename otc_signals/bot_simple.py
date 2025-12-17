@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-🎯 BOT SIMPLE DE SEÑALES - BULLEX
+🎯 BOT SIMPLE - SEÑALES OTC BULLEX
 ==================================
-Muestra señales claras y fáciles de entender.
-NO hace login automático - usa tu SSID.
+python3 bot_simple.py
 """
 
 import asyncio
@@ -11,163 +10,231 @@ import json
 import websockets
 from datetime import datetime, timedelta, timezone
 import time
+import os
 
-# ══════════════════════════════════════════════════════════════
-#  👇 PEGA TU SSID AQUÍ (entre las comillas)
-# ══════════════════════════════════════════════════════════════
-MI_SSID = ""
-# ══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURACIÓN
+# ═══════════════════════════════════════════════════════════════
 
-# Hora República Dominicana
-RD = timezone(timedelta(hours=-4))
-def hora(): return datetime.now(RD).strftime("%H:%M:%S")
+MI_SSID = ""  # Pega tu SSID aquí o ingresalo al ejecutar
 
-# Activos conocidos
+WS_URL = "wss://ws.trade.bull-ex.com/echo/websocket"
+RD_TZ = timezone(timedelta(hours=-4))  # República Dominicana
+
+# Filtros
+UMBRAL_MINIMO = 90       # Solo señales >90%
+COOLDOWN = 300           # 5 min entre señales del mismo activo
+ANTICIPACION = 3         # Minutos antes de entrada
+DURACION = 2             # Duración operación
+
+# ═══════════════════════════════════════════════════════════════
+# ACTIVOS OTC PERMITIDOS
+# ═══════════════════════════════════════════════════════════════
+
 ACTIVOS = {
-    1: "EUR/USD", 2: "EUR/GBP", 3: "GBP/USD", 4: "EUR/JPY", 5: "USD/JPY",
-    6: "AUD/USD", 7: "USD/CAD", 31: "AUD/JPY", 32: "EUR/AUD", 33: "EUR/CAD",
-    34: "GBP/JPY", 35: "GBP/CAD", 36: "GBP/AUD", 37: "CAD/JPY", 38: "NZD/USD",
-    51: "EUR/CHF", 78: "EUR/NZD", 84: "USD/CHF", 85: "AUD/CAD", 86: "AUD/CAD OTC",
-    212: "Bitcoin", 220: "Ethereum", 1470: "Ripple (XRP)", 1857: "BNB",
-    1861: "Chainlink", 1863: "Polkadot", 1866: "Cardano", 1867: "Uniswap",
-    1868: "Aave", 1869: "Maker (MKR)", 1873: "Dogecoin", 1874: "Shiba Inu",
-    1876: "Solana", 1878: "Cosmos", 1881: "Avalanche", 1885: "Polygon",
-    1897: "Fantom (FTM)", 1898: "Stellar", 1901: "Tron", 1912: "Sandbox",
-    1935: "Kava", 1936: "NEAR", 1937: "Fantom", 1941: "Tezos",
-    1973: "Pepe", 1974: "Floki", 1975: "Optimism", 1976: "Arbitrum",
-    2044: "Arbitrum", 2048: "Sui", 2049: "Render", 2050: "Worldcoin",
-    2051: "Sei", 2062: "THORChain", 2063: "Bonk", 2073: "Jupiter",
-    2076: "dogwifhat", 2079: "Starknet", 2090: "Ethena", 2097: "BOME",
-    2098: "Bittensor", 2099: "Floki", 2100: "Notcoin", 2102: "zkSync",
-    2103: "LayerZero", 2105: "LayerZero", 2106: "Blast", 2108: "Dogs",
-    2111: "Wen", 2112: "Neiro", 2113: "Catizen", 2114: "Hamster",
-    2116: "Scroll", 2117: "Safe", 2118: "Aptos", 2119: "Movement",
-    2120: "Goatseus", 2122: "Peanut", 2123: "CoW Protocol", 2124: "Moo Deng",
-    2125: "Chillguy", 2128: "Hyperliquid", 2129: "Magic Eden", 2130: "Movement",
-    2131: "Vana", 2136: "Usual", 2137: "Pudgy Penguins", 2140: "Usual",
-    2141: "ai16z", 2142: "Virtuals", 2144: "Griffain", 2145: "aixbt",
-    2148: "Zerebro", 2150: "Eliza", 2151: "Trump", 2152: "Melania",
-    2155: "Solv", 2156: "Sonic", 2157: "Ondo", 2163: "Berachain",
-    2164: "Berachain", 2166: "Kaito", 2182: "Nil", 2183: "Particle",
-    2265: "Form", 2267: "Mantra", 2276: "Alpaca", 2277: "Haedal",
-    2279: "Milky Way", 2286: "RFC", 2288: "Gork", 2289: "Dark",
-    2290: "Launchcoin", 2299: "Kite AI", 2300: "WalletConnect",
-    2304: "Ondo", 2312: "Zora", 2313: "Pump.fun", 2319: "Haedal", 2320: "Fuel",
-    1348: "Tesla", 1380: "Intel", 1381: "Intel", 1383: "NVIDIA",
+    # FOREX OTC
+    1: "EUR/USD (OTC)", 2: "EUR/GBP (OTC)", 3: "GBP/USD (OTC)",
+    4: "EUR/JPY (OTC)", 5: "USD/JPY (OTC)", 6: "AUD/USD (OTC)",
+    7: "USD/CAD (OTC)", 31: "AUD/JPY (OTC)", 32: "EUR/AUD (OTC)",
+    33: "EUR/CAD (OTC)", 34: "GBP/JPY (OTC)", 35: "GBP/CAD (OTC)",
+    36: "GBP/AUD (OTC)", 37: "CAD/JPY (OTC)", 38: "NZD/USD (OTC)",
+    51: "EUR/CHF (OTC)", 78: "EUR/NZD (OTC)", 84: "USD/CHF (OTC)",
+    85: "AUD/CAD (OTC)", 86: "AUD/CAD (OTC)",
+    
+    # CRYPTO OTC
+    212: "Bitcoin (OTC)", 220: "Ethereum (OTC)", 1470: "Ripple (OTC)",
+    1876: "Solana (OTC)", 2151: "TRUMP (OTC)", 2152: "MELANIA (OTC)",
+    2157: "Ondo (OTC)", 2048: "Sui (OTC)", 2049: "Render (OTC)",
+    
+    # INDICES OTC
+    947: "Nasdaq 100 (OTC)", 948: "S&P 500 (OTC)", 949: "Dow Jones (OTC)",
+    
+    # COMMODITIES
+    959: "Oro XAU (OTC)", 960: "Plata XAG (OTC)",
 }
 
-ultima_senal = {}
+# ═══════════════════════════════════════════════════════════════
 
-def mostrar_senal(nombre, direccion, probabilidad):
-    """Muestra una señal clara y bonita."""
-    ahora = datetime.now(RD)
-    entrada = ahora.replace(second=0, microsecond=0) + timedelta(minutes=3)
-    expiracion = entrada + timedelta(minutes=2)
+def hora():
+    return datetime.now(RD_TZ).strftime("%H:%M:%S")
+
+def hora_entrada():
+    ahora = datetime.now(RD_TZ)
+    entrada = ahora.replace(second=0, microsecond=0) + timedelta(minutes=ANTICIPACION + 1)
+    expira = entrada + timedelta(minutes=DURACION)
+    return entrada.strftime("%H:%M:%S"), expira.strftime("%H:%M:%S")
+
+
+class Bot:
+    def __init__(self, ssid):
+        self.ssid = ssid
+        self.ws = None
+        self.ultima = {}
+        self.total = 0
+        self.precios = {}
     
-    print("\n" + "=" * 55)
-    if direccion == "CALL":
-        print(f"  🟢🟢🟢 SEÑAL: {nombre}")
-        print(f"  📈 DIRECCIÓN: CALL (SUBE)")
-    else:
-        print(f"  🔴🔴🔴 SEÑAL: {nombre}")
-        print(f"  📉 DIRECCIÓN: PUT (BAJA)")
-    print("=" * 55)
-    print(f"  💪 Probabilidad: {probabilidad}%")
-    print(f"  ⏰ Hora actual:  {hora()}")
-    print(f"  🎯 ENTRAR A:     {entrada.strftime('%H:%M:%S')}")
-    print(f"  ⏱️  EXPIRA A:     {expiracion.strftime('%H:%M:%S')}")
-    print(f"  ⌛ Duración:     2 minutos")
-    print("=" * 55)
+    async def conectar(self):
+        print(f"\n🔌 [{hora()}] Conectando...")
+        try:
+            self.ws = await websockets.connect(WS_URL, origin='https://trade.bull-ex.com')
+            await self.ws.send(json.dumps({'name': 'ssid', 'msg': self.ssid}))
+            await asyncio.sleep(1)
+            await self.ws.send(json.dumps({'name': 'subscribeMessage', 'msg': {'name': 'traders-mood-changed'}}))
+            await self.ws.send(json.dumps({'name': 'subscribeMessage', 'msg': {'name': 'candle-generated'}}))
+            print(f"✅ Conectado!\n")
+            return True
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return False
+    
+    def mostrar(self, activo, direccion, prob, entrada, expira):
+        self.total += 1
+        
+        if direccion == "CALL":
+            emoji = "🟢"
+            texto = "SUBE ↑"
+        else:
+            emoji = "🔴"
+            texto = "BAJA ↓"
+        
+        print("")
+        print("═" * 50)
+        print(f"  🎯 SEÑAL #{self.total}")
+        print("═" * 50)
+        print(f"  📍 {activo}")
+        print(f"  {emoji} {texto} ({direccion})")
+        print(f"  📊 Probabilidad: {prob:.0f}%")
+        print("─" * 50)
+        print(f"  ⏰ ENTRAR A LAS:  {entrada}")
+        print(f"  ⏱️  EXPIRA A LAS:  {expira}")
+        print(f"  ⌛ Duración:      {DURACION} minutos")
+        print("─" * 50)
+        print(f"  🕐 Hora RD: {hora()}")
+        print("═" * 50)
+    
+    async def procesar(self, msg):
+        try:
+            data = json.loads(msg)
+            nombre = data.get('name', '')
+            m = data.get('msg', {})
+            
+            if nombre == 'traders-mood-changed':
+                aid = m.get('asset_id', 0)
+                inst = m.get('instrument', '')
+                valor = m.get('value', 0.5)
+                
+                # Filtrar blitz
+                if 'blitz' in inst.lower():
+                    return
+                
+                # Solo activos OTC permitidos
+                if aid not in ACTIVOS:
+                    return
+                
+                # Calcular porcentajes
+                call = valor * 100
+                put = 100 - call
+                
+                # Solo señales fuertes
+                if call >= UMBRAL_MINIMO:
+                    direccion = "CALL"
+                    prob = call
+                elif put >= UMBRAL_MINIMO:
+                    direccion = "PUT"
+                    prob = put
+                else:
+                    return
+                
+                # Cooldown
+                ahora = time.time()
+                clave = f"{aid}_{inst}"
+                if clave in self.ultima:
+                    if ahora - self.ultima[clave] < COOLDOWN:
+                        return
+                self.ultima[clave] = ahora
+                
+                # Mostrar señal
+                entrada, expira = hora_entrada()
+                self.mostrar(ACTIVOS[aid], direccion, prob, entrada, expira)
+                
+            elif nombre == 'candle-generated':
+                aid = m.get('active_id', 0)
+                close = m.get('close', 0)
+                if close:
+                    self.precios[aid] = close
+                    
+        except:
+            pass
+    
+    async def ejecutar(self):
+        if not await self.conectar():
+            return
+        
+        print("═" * 50)
+        print("  🎯 BOT SEÑALES OTC - BULLEX")
+        print("═" * 50)
+        print(f"  🕐 Hora RD: {hora()}")
+        print(f"  📊 Umbral: >{UMBRAL_MINIMO}%")
+        print(f"  ⏰ Anticipación: {ANTICIPACION} min")
+        print(f"  🔄 Cooldown: {COOLDOWN//60} min")
+        print("═" * 50)
+        print("  Esperando señales...")
+        print("  Presiona Ctrl+C para salir")
+        print("═" * 50)
+        
+        try:
+            while True:
+                try:
+                    msg = await asyncio.wait_for(self.ws.recv(), timeout=30)
+                    await self.procesar(msg)
+                except asyncio.TimeoutError:
+                    print(f"  [{hora()}] ⏳ Esperando señales...")
+                except websockets.exceptions.ConnectionClosed:
+                    print(f"\n⚠️ Reconectando...")
+                    if await self.conectar():
+                        continue
+                    break
+        except KeyboardInterrupt:
+            pass
+        
+        print(f"\n\n📊 Total señales: {self.total}")
+        if self.ws:
+            await self.ws.close()
+        print("👋 Bot cerrado")
+
 
 async def main():
+    print("""
+╔══════════════════════════════════════════════════════════════╗
+║           🎯 BOT SEÑALES OTC - BULLEX                       ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  PASOS PARA OBTENER TU SSID:                                 ║
+║                                                              ║
+║  1. Abre Chrome → https://trade.bull-ex.com                  ║
+║  2. Haz login con tu cuenta                                  ║
+║  3. Presiona F12                                             ║
+║  4. Click en "Application" (arriba)                          ║
+║  5. Click en "Cookies" → "trade.bull-ex.com"                 ║
+║  6. Busca "ssid" y copia el valor                            ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+""")
+    
     ssid = MI_SSID.strip()
+    if not ssid:
+        ssid = input("🔑 Pega tu SSID aquí: ").strip()
     
     if not ssid:
-        print("\n" + "=" * 55)
-        print("  🔮 BOT DE SEÑALES BULLEX")
-        print("=" * 55)
-        print("\n  ⚠️  Necesitas tu SSID para conectar.\n")
-        print("  📋 CÓMO OBTENERLO:")
-        print("  1. Abre Chrome → https://trade.bull-ex.com")
-        print("  2. Haz login con tu cuenta")
-        print("  3. Presiona F12")
-        print("  4. Clic en 'Application' → 'Cookies'")
-        print("  5. Busca 'ssid' y copia el valor\n")
-        ssid = input("  🔑 Pega tu SSID aquí: ").strip()
-        if not ssid:
-            print("\n  ❌ No ingresaste SSID. Saliendo...")
-            return
+        print("\n❌ Necesitas un SSID válido")
+        return
     
-    print(f"\n🔌 [{hora()}] Conectando a Bullex...")
-    
-    try:
-        ws = await websockets.connect(
-            "wss://ws.trade.bull-ex.com/echo/websocket",
-            origin="https://trade.bull-ex.com"
-        )
-        
-        await ws.send(json.dumps({'name': 'ssid', 'msg': ssid}))
-        await asyncio.sleep(1)
-        await ws.send(json.dumps({'name': 'subscribeMessage', 'msg': {'name': 'traders-mood-changed'}}))
-        
-        print(f"✅ [{hora()}] ¡Conectado!")
-        print("\n" + "=" * 55)
-        print("  🎯 BOT ACTIVO - Esperando señales fuertes...")
-        print("  📊 Solo mostraré señales con >85% probabilidad")
-        print("  🇩🇴 Hora: República Dominicana (UTC-4)")
-        print("  ⏰ Anticipación: 3 minutos")
-        print("  ⌛ Duración: 2 minutos")
-        print("=" * 55)
-        print("\n  Presiona Ctrl+C para salir\n")
-        
-        while True:
-            try:
-                msg = await asyncio.wait_for(ws.recv(), timeout=30)
-                data = json.loads(msg)
-                
-                if data.get('name') == 'traders-mood-changed':
-                    m = data.get('msg', {})
-                    aid = m.get('asset_id', 0)
-                    inst = m.get('instrument', '')
-                    value = m.get('value', 0.5)
-                    
-                    # Ignorar blitz
-                    if 'blitz' in inst.lower():
-                        continue
-                    
-                    call_pct = value * 100
-                    put_pct = 100 - call_pct
-                    
-                    # Solo señales fuertes (>85%)
-                    if call_pct >= 85 or put_pct >= 85:
-                        # Control de frecuencia (3 min entre señales del mismo activo)
-                        clave = f"{aid}_{inst}"
-                        ahora = time.time()
-                        if clave in ultima_senal and ahora - ultima_senal[clave] < 180:
-                            continue
-                        ultima_senal[clave] = ahora
-                        
-                        # Obtener nombre
-                        nombre = ACTIVOS.get(aid, f"Activo #{aid}")
-                        
-                        # Determinar dirección
-                        if call_pct >= 85:
-                            mostrar_senal(nombre, "CALL", round(call_pct))
-                        else:
-                            mostrar_senal(nombre, "PUT", round(put_pct))
-                            
-            except asyncio.TimeoutError:
-                print(f"  [{hora()}] Esperando señales...")
-                
-    except websockets.exceptions.ConnectionClosed:
-        print(f"\n⚠️ Conexión cerrada. Reconectando...")
-        await main()
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        print("   Verifica que tu SSID sea válido.")
+    bot = Bot(ssid)
+    await bot.ejecutar()
+
 
 if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\n👋 Bot cerrado. ¡Hasta luego!")
+        print("\n👋 Cerrado")
