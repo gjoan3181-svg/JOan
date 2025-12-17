@@ -1,161 +1,160 @@
 # 📊 OTC Market Signal Generator
 
-Sistema avanzado de análisis técnico y generación de señales de trading para mercados OTC, criptomonedas y forex.
+## 🚀 Sistema de Señales de Trading - SIN API KEYS
 
-## 🚀 Características
+Sistema completo de análisis técnico y generación de señales para:
+- **Criptomonedas** (BTC, ETH, SOL, y 100+ más)
+- **Acciones** (incluyendo OTC/Pink Sheets)
+- **Forex** (EUR/USD, GBP/USD, etc.)
 
-- **Análisis multi-indicador**: RSI, MACD, Bollinger Bands, Stochastic, ADX, y más
-- **Señales automáticas**: Genera señales de compra/venta con niveles de SL/TP
-- **Soporte multi-mercado**: Crypto, acciones (incluyendo OTC), y Forex
-- **Análisis de tendencia**: Identifica tendencias y su fuerza
-- **Gestión de riesgo**: Calcula automáticamente niveles de riesgo
-- **Backtesting**: Prueba estrategias con datos históricos
+### ✅ NO NECESITAS API KEYS
+Usa fuentes públicas gratuitas: Yahoo Finance, CoinGecko, Kraken.
 
-## 📦 Instalación
+---
+
+## 📦 Instalación Rápida
 
 ```bash
-# Clonar o descargar el proyecto
 cd otc_signals
 
-# Crear entorno virtual (recomendado)
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# o
-venv\Scripts\activate  # Windows
-
 # Instalar dependencias
-pip install -r requirements.txt
+pip3 install pandas numpy yfinance ta requests
+
+# ¡Listo para usar!
 ```
 
-## 🎯 Uso Rápido
+---
 
-### Análisis de una criptomoneda
+## 🎯 USO RÁPIDO
+
+### Analizar una moneda específica
 
 ```bash
-# Analizar Bitcoin
-python main.py
+# Criptomonedas
+python3 analizar.py BTC        # Bitcoin
+python3 analizar.py ETH        # Ethereum  
+python3 analizar.py SOL        # Solana
+python3 analizar.py DOGE       # Dogecoin
+python3 analizar.py PEPE       # Pepe
 
-# Analizar Ethereum
-python main.py --symbol ETH/USDT
+# Múltiples monedas a la vez
+python3 analizar.py BTC ETH SOL XRP
 
-# Analizar Solana con timeframe de 4 horas
-python main.py --symbol SOL/USDT --timeframe 4h
+# Acciones
+python3 analizar.py AAPL       # Apple
+python3 analizar.py TSLA       # Tesla
+python3 analizar.py NVDA       # Nvidia
+
+# Forex
+python3 analizar.py EURUSD     # Euro/Dólar
+python3 analizar.py GBPUSD     # Libra/Dólar
 ```
 
-### Análisis de acciones
+### Modo Interactivo (menú)
 
 ```bash
-# Analizar Apple
-python main.py --symbol AAPL --market stock
-
-# Analizar Tesla
-python main.py --symbol TSLA --market stock
+python3 analizar.py
 ```
 
-### Análisis de Forex
+### Escanear mercado completo
 
 ```bash
-# Analizar EUR/USD
-python main.py --symbol EURUSD=X --market forex
-
-# Analizar GBP/USD
-python main.py --symbol GBPUSD=X --market forex
+python3 analizar.py --scan crypto   # Escanear criptos
+python3 analizar.py --scan stock    # Escanear acciones
 ```
 
-### Escanear múltiples activos
+---
 
-```bash
-# Escanear las principales criptos
-python main.py --scan --market crypto
+## 📊 ¿QUÉ INFORMACIÓN TE DA?
 
-# Escanear acciones populares
-python main.py --scan --market stock
+Cada análisis incluye:
+
+| Información | Descripción |
+|-------------|-------------|
+| 💰 **Precio Actual** | Precio en tiempo real |
+| 📈 **Cambio %** | Variación respecto a vela anterior |
+| 🎯 **Señal** | COMPRA FUERTE / COMPRA / NEUTRAL / VENTA / VENTA FUERTE |
+| 💪 **Fuerza** | Qué tan fuerte es la señal (0-100%) |
+| 🛑 **Stop Loss** | Nivel sugerido para limitar pérdidas |
+| 🎯 **Take Profit** | Nivel sugerido para tomar ganancias |
+| 📈 **Tendencia** | ALCISTA / BAJISTA / LATERAL |
+| 📊 **Volatilidad** | BAJA / MODERADA / ALTA / MUY ALTA |
+| ⚠️ **Riesgo** | Score de 1-10 (mayor = más riesgoso) |
+| 📋 **Razones** | Por qué se genera la señal |
+| 💡 **Insights** | Observaciones importantes del mercado |
+| 📊 **Soportes/Resistencias** | Niveles clave de precio |
+
+---
+
+## 🎯 TIPOS DE SEÑALES
+
+| Señal | Emoji | Significado |
+|-------|-------|-------------|
+| **COMPRA FUERTE** | 🟢 | Múltiples indicadores alcistas - Alta probabilidad |
+| **COMPRA** | 🔵 | Indicadores favorables - Considerar entrada |
+| **NEUTRAL** | ⚪ | Sin dirección clara - Esperar |
+| **VENTA** | 🟠 | Indicadores bajistas - Considerar salida |
+| **VENTA FUERTE** | 🔴 | Múltiples indicadores bajistas - Alta probabilidad |
+
+---
+
+## 📈 INDICADORES TÉCNICOS
+
+El sistema analiza 15+ indicadores:
+
+- **RSI** - Sobrecompra/Sobreventa
+- **MACD** - Momentum y cruces
+- **Bollinger Bands** - Volatilidad y zonas de precio
+- **Stochastic** - Momentum
+- **ADX** - Fuerza de tendencia
+- **ATR** - Volatilidad para calcular SL/TP
+- **OBV** - Confirmación por volumen
+- **VWAP** - Precio promedio ponderado
+- **SMA/EMA** - Medias móviles (20, 50, 200)
+
+---
+
+## 💡 CRIPTOMONEDAS SOPORTADAS
+
+```
+BTC  ETH  BNB  SOL  XRP  ADA  DOGE DOT  MATIC SHIB
+LTC  AVAX LINK UNI  ATOM XLM  ALGO VET  FTM   SAND
+MANA AAVE AXS  THETA EOS XTZ  CAKE NEO  PEPE  ARB
+OP   SUI  APT  INJ  TRX  NEAR ICP  FIL  HBAR  LDO
+APE  CRO  QNT  MKR  RUNE EGLD FLOW KAVA GMX   CFX
+BONK WIF  FLOKI GALA ENS LRC  MAGIC... y más
 ```
 
-### Ejecutar backtesting
+---
 
-```bash
-# Backtest de BTC
-python main.py --backtest --symbol BTC/USDT
-```
-
-## 📈 Indicadores Técnicos Incluidos
-
-| Indicador | Descripción | Uso |
-|-----------|-------------|-----|
-| **RSI** | Relative Strength Index | Sobrecompra/sobreventa |
-| **MACD** | Moving Average Convergence Divergence | Momentum y cruces |
-| **Bollinger Bands** | Bandas de volatilidad | Zonas de precio |
-| **Stochastic** | Oscilador estocástico | Momentum |
-| **ADX** | Average Directional Index | Fuerza de tendencia |
-| **ATR** | Average True Range | Volatilidad |
-| **OBV** | On-Balance Volume | Confirmación por volumen |
-| **VWAP** | Volume Weighted Average Price | Precio promedio ponderado |
-| **SMA/EMA** | Medias móviles | Tendencia |
-| **Ichimoku** | Sistema Ichimoku | Análisis completo |
-
-## 🎯 Tipos de Señales
-
-| Señal | Significado | Acción Sugerida |
-|-------|-------------|-----------------|
-| 🟢 COMPRA FUERTE | Múltiples indicadores alcistas | Considerar entrada larga |
-| 🔵 COMPRA | Indicadores moderadamente alcistas | Evaluar entrada |
-| ⚪ NEUTRAL | Sin dirección clara | Esperar |
-| 🟠 VENTA | Indicadores moderadamente bajistas | Evaluar salida/corto |
-| 🔴 VENTA FUERTE | Múltiples indicadores bajistas | Considerar salida/corto |
-
-## 📊 Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 otc_signals/
+├── analizar.py          # ⭐ Script principal (USA ESTE)
+├── main.py              # Script con más opciones
 ├── core/
-│   ├── __init__.py
-│   ├── data_fetcher.py    # Obtención de datos
-│   ├── indicators.py       # Indicadores técnicos
-│   ├── signals.py          # Generación de señales
-│   └── analyzer.py         # Análisis de mercado
+│   ├── data_fetcher.py  # Obtención de datos (sin API keys)
+│   ├── indicators.py    # Indicadores técnicos
+│   ├── signals.py       # Generación de señales
+│   └── analyzer.py      # Análisis de mercado
 ├── strategies/
-│   ├── __init__.py
-│   └── multi_indicator.py  # Estrategia principal
+│   └── multi_indicator.py  # Estrategia de trading
 ├── utils/
-│   ├── __init__.py
-│   └── display.py          # Visualización
-├── main.py                 # Script principal
-├── requirements.txt        # Dependencias
-└── README.md              # Este archivo
+│   └── display.py       # Visualización
+└── requirements.txt     # Dependencias
 ```
 
-## 🔧 Configuración Avanzada
+---
 
-### Personalizar umbrales de señales
-
-```python
-from core import SignalGenerator
-
-config = {
-    'rsi': {
-        'oversold': 25,      # Más agresivo
-        'overbought': 75,
-        'weight': 20
-    },
-    'macd': {
-        'weight': 25
-    },
-    # ... más configuraciones
-}
-
-signal_gen = SignalGenerator(config=config)
-```
-
-### Usar como librería
+## 🔧 Uso Avanzado (como librería)
 
 ```python
-from core import DataFetcher, TechnicalIndicators, SignalGenerator, MarketAnalyzer
-from strategies import MultiIndicatorStrategy
+from core import DataFetcher, TechnicalIndicators, SignalGenerator
 
 # Obtener datos
 fetcher = DataFetcher()
-df = fetcher.fetch_crypto('BTC/USDT', timeframe='1h', limit=500)
+df = fetcher.fetch_crypto('BTC', timeframe='1h', limit=500)
 
 # Calcular indicadores
 df = TechnicalIndicators.calculate_all(df)
@@ -165,31 +164,41 @@ signal_gen = SignalGenerator()
 signal = signal_gen.generate_signal(df)
 
 print(f"Señal: {signal.type.value}")
-print(f"Fuerza: {signal.strength}%")
-print(f"Stop Loss: ${signal.stop_loss}")
-print(f"Take Profit: ${signal.take_profit}")
+print(f"Precio: ${df['close'].iloc[-1]:,.2f}")
+print(f"Stop Loss: ${signal.stop_loss:,.2f}")
+print(f"Take Profit: ${signal.take_profit:,.2f}")
 ```
-
-## ⚠️ Disclaimer
-
-**IMPORTANTE**: Este software es solo para fines educativos y de investigación.
-
-- No constituye asesoramiento financiero
-- El trading de mercados OTC conlleva alto riesgo
-- Los resultados pasados no garantizan resultados futuros
-- Siempre haz tu propia investigación (DYOR)
-- Nunca inviertas más de lo que puedas permitirte perder
-
-## 📝 Licencia
-
-MIT License - Libre para uso personal y comercial.
-
-## 🤝 Contribuciones
-
-¡Las contribuciones son bienvenidas! Por favor abre un issue o pull request.
 
 ---
 
-**¿Preguntas?** Abre un issue en el repositorio.
+## ⚠️ DISCLAIMER
+
+**IMPORTANTE**: Este software es solo para fines educativos.
+
+- ❌ No es asesoramiento financiero
+- ❌ El trading conlleva riesgo de pérdida
+- ❌ Resultados pasados no garantizan resultados futuros
+- ✅ Siempre haz tu propia investigación (DYOR)
+- ✅ Nunca inviertas más de lo que puedas perder
+- ✅ Usa gestión de riesgo apropiada
+
+---
+
+## 🆘 Solución de Problemas
+
+**Error: "No module named 'yfinance'"**
+```bash
+pip3 install yfinance
+```
+
+**Error: "No hay datos para X"**
+- Verifica que el símbolo sea correcto
+- Algunas monedas muy nuevas pueden no tener datos
+
+**Los datos son de ejemplo**
+- Si ves "Generando datos de ejemplo", significa que no se pudieron obtener datos reales
+- Intenta con otra moneda más popular (BTC, ETH)
+
+---
 
 *Hecho con ❤️ para traders*
