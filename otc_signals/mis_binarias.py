@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
 """
-🎯 MIS SEÑALES BINARIAS OTC
-===========================
+🎯 MIS SEÑALES BINARIAS OTC v2.0
+================================
 
-Configurado para los activos de tu plataforma:
-- Crypto: ETH, BTC, SOL, TRUMP, MELANIA
-- Forex: EUR/USD, GBP/USD, USD/CHF, AUD/CAD, EUR/JPY
-- Commodities: UKO (Petróleo)
+MEJORADO: Ahora respeta la tendencia y evita señales contra-tendencia.
 
-Uso:
-    python3 mis_binarias.py           # Escanear todos mis activos
-    python3 mis_binarias.py ETH       # Analizar ETH
-    python3 mis_binarias.py EURUSD    # Analizar EUR/USD
+Regla #1: NO operar contra la tendencia fuerte
+Regla #2: En tendencia bajista, solo PUT
+Regla #3: En tendencia alcista, solo CALL
+Regla #4: En lateral, buscar rebotes en extremos
 """
 
 import sys
@@ -63,10 +60,11 @@ class SenalBinaria:
     momento: str
     precio: float
     tendencia: str
+    advertencia: str = ""
 
 
 class AnalizadorOTC:
-    """Analizador para mis activos OTC específicos."""
+    """Analizador mejorado - RESPETA LA TENDENCIA."""
     
     def __init__(self):
         self.fetcher = DataFetcher()
@@ -76,7 +74,6 @@ class AnalizadorOTC:
         config = MIS_ACTIVOS.get(activo.upper())
         
         if not config:
-            # Intentar como símbolo directo
             return self.fetcher.fetch_crypto(activo, timeframe='1h', limit=200)
         
         yahoo_symbol = config.get('yahoo')
@@ -93,11 +90,91 @@ class AnalizadorOTC:
         except:
             pass
         
-        # Fallback para crypto
         if config.get('tipo') == 'crypto':
             return self.fetcher.fetch_crypto(activo, timeframe='1h', limit=200)
         
         return pd.DataFrame()
+    
+    def _analizar_tendencia(self, df: pd.DataFrame) -> Tuple[str, int]:
+        """
+        Analiza la tendencia de forma más precisa.
+        
+        Returns:
+            (tendencia, fuerza_tendencia)
+            tendencia: "ALCISTA", "BAJISTA", "LATERAL"
+            fuerza: 0-100 (qué tan fuerte es la tendencia)
+        """
+        close = df['close']
+        
+        # 1. Pendiente de las últimas 10 velas
+        ultimas_10 = close.tail(10).values
+        pendiente_corta = (ultimas_10[-1] - ultimas_10[0]) / ultimas_10[0] * 100
+        
+        # 2. Pendiente de las últimas 20 velas
+        ultimas_20 = close.tail(20).values
+        pendiente_media = (ultimas_20[-1] - ultimas_20[0]) / ultimas_20[0] * 100
+        
+        # 3. Contar velas rojas vs verdes en últimas 10
+        velas_verdes = 0
+        velas_rojas = 0
+        for i in range(-10, 0):
+            if df['close'].iloc[i] > df['open'].iloc[i]:
+                velas_verdes += 1
+            else:
+                velas_rojas += 1
+        
+        # 4. EMAs
+        ema12 = df['ema_12'].iloc[-1] if 'ema_12' in df.columns else close.ewm(span=12).mean().iloc[-1]
+        ema26 = df['ema_26'].iloc[-1] if 'ema_26' in df.columns else close.ewm(span=26).mean().iloc[-1]
+        precio = close.iloc[-1]
+        
+        # 5. Calcular score de tendencia
+        score_alcista = 0
+        score_bajista = 0
+        
+        # Pendiente corta
+        if pendiente_corta > 0.5:
+            score_alcista += 30
+        elif pendiente_corta < -0.5:
+            score_bajista += 30
+        
+        # Pendiente media
+        if pendiente_media > 0.3:
+            score_alcista += 20
+        elif pendiente_media < -0.3:
+            score_bajista += 20
+        
+        # Velas
+        if velas_verdes >= 7:
+            score_alcista += 25
+        elif velas_rojas >= 7:
+            score_bajista += 25
+        elif velas_verdes >= 6:
+            score_alcista += 15
+        elif velas_rojas >= 6:
+            score_bajista += 15
+        
+        # Posición respecto a EMAs
+        if precio > ema12 > ema26:
+            score_alcista += 25
+        elif precio < ema12 < ema26:
+            score_bajista += 25
+        elif precio > ema12:
+            score_alcista += 10
+        elif precio < ema12:
+            score_bajista += 10
+        
+        # Determinar tendencia
+        if score_alcista >= 50 and score_alcista > score_bajista + 20:
+            return "ALCISTA FUERTE", score_alcista
+        elif score_bajista >= 50 and score_bajista > score_alcista + 20:
+            return "BAJISTA FUERTE", score_bajista
+        elif score_alcista > score_bajista + 10:
+            return "ALCISTA", score_alcista
+        elif score_bajista > score_alcista + 10:
+            return "BAJISTA", score_bajista
+        else:
+            return "LATERAL", max(score_alcista, score_bajista)
     
     def _detectar_patrones(self, df: pd.DataFrame) -> Tuple[str, str]:
         """Detecta patrones de velas."""
@@ -116,34 +193,39 @@ class AnalizadorOTC:
         lower_wick = min(c3['open'], c3['close']) - c3['low']
         upper_wick = c3['high'] - max(c3['open'], c3['close'])
         
-        # Patrones CALL
-        if lower_wick > size3 * 2 and upper_wick < size3 * 0.5 and body3 > 0:
-            return "🔨 Martillo", "CALL"
+        # Patrones CALL (reversión alcista)
+        if lower_wick > size3 * 2.5 and upper_wick < size3 * 0.3 and body3 > 0:
+            return "🔨 Martillo fuerte", "CALL"
         
-        if body2 < 0 and body3 > 0 and c3['close'] > c2['open'] and c3['open'] < c2['close']:
-            return "📈 Envolvente Alcista", "CALL"
+        if body2 < 0 and body3 > 0 and abs(body3) > abs(body2) * 1.5:
+            if c3['close'] > c2['open'] and c3['open'] < c2['close']:
+                return "📈 Envolvente Alcista", "CALL"
         
-        if body1 > 0 and body2 > 0 and body3 > 0 and c3['close'] > c2['close'] > c1['close']:
-            return "💪 3 Soldados Blancos", "CALL"
+        # Patrones PUT (reversión bajista)
+        if upper_wick > size3 * 2.5 and lower_wick < size3 * 0.3 and body3 < 0:
+            return "💫 Estrella Fugaz fuerte", "PUT"
         
-        # Patrones PUT
-        if upper_wick > size3 * 2 and lower_wick < size3 * 0.5 and body3 < 0:
-            return "💫 Estrella Fugaz", "PUT"
+        if body2 > 0 and body3 < 0 and abs(body3) > abs(body2) * 1.5:
+            if c3['close'] < c2['open'] and c3['open'] > c2['close']:
+                return "📉 Envolvente Bajista", "PUT"
         
-        if body2 > 0 and body3 < 0 and c3['close'] < c2['open'] and c3['open'] > c2['close']:
-            return "📉 Envolvente Bajista", "PUT"
+        # Continuación de tendencia
+        if body1 > 0 and body2 > 0 and body3 > 0:
+            if c3['close'] > c2['close'] > c1['close']:
+                return "💪 Continuación Alcista", "CALL"
         
-        if body1 < 0 and body2 < 0 and body3 < 0 and c3['close'] < c2['close'] < c1['close']:
-            return "🐦 3 Cuervos Negros", "PUT"
+        if body1 < 0 and body2 < 0 and body3 < 0:
+            if c3['close'] < c2['close'] < c1['close']:
+                return "📉 Continuación Bajista", "PUT"
         
-        # Doji
-        if size3 < avg_size * 0.1:
-            return "✚ Doji", "ESPERAR"
+        # Doji = indecisión
+        if size3 < avg_size * 0.15:
+            return "✚ Doji - Indecisión", "ESPERAR"
         
         return None, None
     
     def analizar(self, activo: str) -> SenalBinaria:
-        """Analiza un activo y genera señal."""
+        """Analiza un activo respetando la tendencia."""
         
         config = MIS_ACTIVOS.get(activo.upper(), {})
         nombre = config.get('nombre', activo.upper())
@@ -159,150 +241,169 @@ class AnalizadorOTC:
                 razones=["Sin datos disponibles"],
                 momento="❌ NO OPERAR",
                 precio=0,
-                tendencia="?"
+                tendencia="?",
+                advertencia="No hay datos"
             )
         
         # Calcular indicadores
         df = TechnicalIndicators.calculate_all(df)
         
-        call_pts = 0
-        put_pts = 0
-        razones = []
-        
         close = df['close'].iloc[-1]
         
-        # 1. Patrones de velas (peso alto)
+        # ===== PASO 1: ANALIZAR TENDENCIA (MÁS IMPORTANTE) =====
+        tendencia, fuerza_tendencia = self._analizar_tendencia(df)
+        
+        razones = []
+        advertencia = ""
+        
+        # ===== PASO 2: DETERMINAR DIRECCIÓN PERMITIDA =====
+        if "BAJISTA FUERTE" in tendencia:
+            # Solo permitir PUT
+            direccion_permitida = "PUT"
+            razones.append(f"📉 TENDENCIA {tendencia}")
+            advertencia = "⚠️ Solo PUT - Tendencia bajista fuerte"
+        elif "ALCISTA FUERTE" in tendencia:
+            # Solo permitir CALL
+            direccion_permitida = "CALL"
+            razones.append(f"📈 TENDENCIA {tendencia}")
+            advertencia = "⚠️ Solo CALL - Tendencia alcista fuerte"
+        elif "BAJISTA" in tendencia:
+            direccion_permitida = "PUT_PREFERIDO"
+            razones.append(f"📉 Tendencia {tendencia}")
+        elif "ALCISTA" in tendencia:
+            direccion_permitida = "CALL_PREFERIDO"
+            razones.append(f"📈 Tendencia {tendencia}")
+        else:
+            direccion_permitida = "AMBOS"
+            razones.append("↔️ Mercado lateral")
+        
+        # ===== PASO 3: BUSCAR SEÑALES DE ENTRADA =====
+        call_pts = 0
+        put_pts = 0
+        
+        # Patrones de velas
         patron, patron_dir = self._detectar_patrones(df)
-        if patron:
+        if patron and patron_dir != "ESPERAR":
             if patron_dir == "CALL":
                 call_pts += 20
-                razones.append(patron)
-            elif patron_dir == "PUT":
+            else:
                 put_pts += 20
-                razones.append(patron)
+            razones.append(patron)
         
-        # 2. RSI
+        # RSI - SOLO si va con la tendencia o en lateral
         rsi = df['rsi'].iloc[-1]
         if not pd.isna(rsi):
-            if rsi < 25:
+            if rsi < 30 and direccion_permitida in ["CALL", "CALL_PREFERIDO", "AMBOS"]:
                 call_pts += 15
-                razones.append(f"📊 RSI muy bajo ({rsi:.0f})")
-            elif rsi < 35:
-                call_pts += 10
                 razones.append(f"📊 RSI bajo ({rsi:.0f})")
-            elif rsi > 75:
+            elif rsi > 70 and direccion_permitida in ["PUT", "PUT_PREFERIDO", "AMBOS"]:
                 put_pts += 15
-                razones.append(f"📊 RSI muy alto ({rsi:.0f})")
-            elif rsi > 65:
-                put_pts += 10
                 razones.append(f"📊 RSI alto ({rsi:.0f})")
         
-        # 3. Stochastic
+        # Stochastic
         k = df['stoch_k'].iloc[-1]
         d = df['stoch_d'].iloc[-1]
         k_prev = df['stoch_k'].iloc[-2]
         d_prev = df['stoch_d'].iloc[-2]
         
         if not pd.isna(k):
-            # Cruce alcista en sobreventa
-            if k < 25 and k_prev < d_prev and k > d:
-                call_pts += 15
-                razones.append("📈 Stoch cruce alcista")
-            # Cruce bajista en sobrecompra
-            elif k > 75 and k_prev > d_prev and k < d:
-                put_pts += 15
-                razones.append("📉 Stoch cruce bajista")
-            elif k < 20:
-                call_pts += 8
-            elif k > 80:
-                put_pts += 8
+            if k < 20 and k_prev < d_prev and k > d:
+                if direccion_permitida in ["CALL", "CALL_PREFERIDO", "AMBOS"]:
+                    call_pts += 15
+                    razones.append("📈 Stoch cruce alcista")
+            elif k > 80 and k_prev > d_prev and k < d:
+                if direccion_permitida in ["PUT", "PUT_PREFERIDO", "AMBOS"]:
+                    put_pts += 15
+                    razones.append("📉 Stoch cruce bajista")
         
-        # 4. Bollinger Bands
+        # Bollinger - Solo en mercado lateral o con la tendencia
         bb_upper = df['bb_upper'].iloc[-1]
         bb_lower = df['bb_lower'].iloc[-1]
         
         if not pd.isna(bb_upper):
-            if close <= bb_lower * 1.005:
+            if close <= bb_lower * 1.002 and direccion_permitida in ["CALL", "CALL_PREFERIDO", "AMBOS"]:
                 call_pts += 12
-                razones.append("📉 En banda inferior BB")
-            elif close >= bb_upper * 0.995:
+                razones.append("📉 Tocando Bollinger inferior")
+            elif close >= bb_upper * 0.998 and direccion_permitida in ["PUT", "PUT_PREFERIDO", "AMBOS"]:
                 put_pts += 12
-                razones.append("📈 En banda superior BB")
+                razones.append("📈 Tocando Bollinger superior")
         
-        # 5. MACD
+        # MACD
         hist = df['macd_hist'].iloc[-1]
         hist_prev = df['macd_hist'].iloc[-2]
         
         if not pd.isna(hist):
             if hist > 0 and hist_prev <= 0:
-                call_pts += 12
+                call_pts += 10
                 razones.append("📊 MACD cruce alcista")
             elif hist < 0 and hist_prev >= 0:
-                put_pts += 12
+                put_pts += 10
                 razones.append("📊 MACD cruce bajista")
-            elif hist > 0 and hist > hist_prev:
-                call_pts += 5
-            elif hist < 0 and hist < hist_prev:
-                put_pts += 5
         
-        # 6. Momentum (últimas 3 velas)
+        # Momentum últimas 3 velas
         mom = (close - df['close'].iloc[-4]) / df['close'].iloc[-4] * 100
-        if mom > 0.3:
-            call_pts += 8
-            razones.append(f"📈 Momentum +{mom:.2f}%")
-        elif mom < -0.3:
-            put_pts += 8
-            razones.append(f"📉 Momentum {mom:.2f}%")
+        if mom > 0.2:
+            call_pts += 10
+        elif mom < -0.2:
+            put_pts += 10
         
-        # 7. EMAs
-        ema12 = df['ema_12'].iloc[-1]
-        ema26 = df['ema_26'].iloc[-1]
+        # ===== PASO 4: APLICAR FILTRO DE TENDENCIA =====
+        if direccion_permitida == "PUT":
+            # Anular señales CALL en tendencia bajista fuerte
+            call_pts = 0
+            if put_pts < 10:
+                # Dar puntos base por seguir tendencia
+                put_pts += 15
+                razones.append("↘️ A favor de tendencia")
+        elif direccion_permitida == "CALL":
+            # Anular señales PUT en tendencia alcista fuerte
+            put_pts = 0
+            if call_pts < 10:
+                call_pts += 15
+                razones.append("↗️ A favor de tendencia")
+        elif direccion_permitida == "PUT_PREFERIDO":
+            # Penalizar CALL ligeramente
+            call_pts = int(call_pts * 0.6)
+        elif direccion_permitida == "CALL_PREFERIDO":
+            put_pts = int(put_pts * 0.6)
         
-        if close > ema12 > ema26:
-            call_pts += 5
-            tendencia = "ALCISTA"
-        elif close < ema12 < ema26:
-            put_pts += 5
-            tendencia = "BAJISTA"
-        else:
-            tendencia = "LATERAL"
-        
-        # Calcular resultado
+        # ===== PASO 5: CALCULAR RESULTADO =====
         diferencia = abs(call_pts - put_pts)
-        total = call_pts + put_pts
         
-        if call_pts > put_pts and diferencia >= 10:
+        if call_pts > put_pts and diferencia >= 12:
             direccion = Direccion.CALL
-            prob = min(60 + diferencia * 1.5, 95)
-        elif put_pts > call_pts and diferencia >= 10:
+            prob = min(55 + diferencia * 1.2, 90)
+        elif put_pts > call_pts and diferencia >= 12:
             direccion = Direccion.PUT
-            prob = min(60 + diferencia * 1.5, 95)
+            prob = min(55 + diferencia * 1.2, 90)
         else:
             direccion = Direccion.ESPERAR
             prob = 50
-            razones.append("⚠️ Señal muy débil")
+            if not advertencia:
+                advertencia = "⚠️ Señal débil - esperar"
         
         # Fuerza
-        if diferencia >= 35:
+        if diferencia >= 40:
             fuerza = 5
-        elif diferencia >= 25:
+        elif diferencia >= 30:
             fuerza = 4
-        elif diferencia >= 18:
+        elif diferencia >= 22:
             fuerza = 3
-        elif diferencia >= 12:
+        elif diferencia >= 15:
             fuerza = 2
         else:
             fuerza = 1
         
         # Momento
-        if fuerza >= 4 and len(razones) >= 2:
+        if fuerza >= 4 and len(razones) >= 3:
             momento = "🔥 ENTRAR AHORA"
-        elif fuerza >= 3:
+        elif fuerza >= 3 and len(razones) >= 2:
             momento = "✅ BUENA ENTRADA"
         elif fuerza >= 2:
-            momento = "⏳ ESPERAR"
+            momento = "⏳ ESPERAR CONFIRM."
         else:
             momento = "❌ NO OPERAR"
+            direccion = Direccion.ESPERAR
         
         # Expiración
         if fuerza >= 4:
@@ -320,7 +421,8 @@ class AnalizadorOTC:
             razones=razones if razones else ["Sin señales claras"],
             momento=momento,
             precio=close,
-            tendencia=tendencia
+            tendencia=tendencia,
+            advertencia=advertencia
         )
 
 
@@ -333,7 +435,7 @@ def format_price(p):
 
 
 def mostrar_senal(activo: str, senal: SenalBinaria):
-    """Muestra señal de forma compacta y clara."""
+    """Muestra señal de forma clara."""
     
     config = MIS_ACTIVOS.get(activo.upper(), {})
     nombre = config.get('nombre', activo.upper())
@@ -343,7 +445,12 @@ def mostrar_senal(activo: str, senal: SenalBinaria):
     print(f"\n{'═'*55}")
     print(f"  🎯 {nombre}")
     print(f"  💰 Precio: {format_price(senal.precio)}")
+    print(f"  📈 Tendencia: {senal.tendencia}")
     print(f"{'═'*55}")
+    
+    # Advertencia si hay
+    if senal.advertencia:
+        print(f"\n  {senal.advertencia}")
     
     # Señal principal
     if senal.direccion == Direccion.CALL:
@@ -356,18 +463,17 @@ def mostrar_senal(activo: str, senal: SenalBinaria):
         print(f"  ╚{'═'*51}╝")
     else:
         print(f"\n  ╔{'═'*51}╗")
-        print(f"  ║{'⚪ ESPERAR':^51}║")
+        print(f"  ║{'⚪ ESPERAR - NO OPERAR':^51}║")
         print(f"  ╚{'═'*51}╝")
     
     print(f"\n  📊 Probabilidad: {senal.probabilidad:.0f}%")
     print(f"  💪 Fuerza:       {estrellas}")
     print(f"  ⏱️  Expiración:   {senal.expiracion}")
     print(f"  🚦 Momento:      {senal.momento}")
-    print(f"  📈 Tendencia:    {senal.tendencia}")
     
     print(f"\n  {'─'*50}")
     print(f"  📋 RAZONES:")
-    for r in senal.razones[:5]:
+    for r in senal.razones[:6]:
         print(f"     • {r}")
     
     print(f"{'═'*55}")
@@ -377,23 +483,18 @@ def escanear_todos():
     """Escanea todos mis activos."""
     
     print("\n" + "🎯"*20)
-    print("  ESCANEANDO MIS ACTIVOS OTC")
+    print("  ESCANEANDO MIS ACTIVOS OTC v2.0")
+    print("  RESPETA TENDENCIA - Más conservador")
     print("  " + datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     print("🎯"*20)
     
     analizador = AnalizadorOTC()
     resultados = []
     
-    activos_ordenados = [
-        # Crypto primero
-        'BTC', 'ETH', 'SOL', 'TRUMP', 'MELANIA',
-        # Luego Forex
-        'EURUSD', 'GBPUSD', 'USDCHF', 'AUDCAD', 'EURJPY',
-        # Commodities
-        'UKO'
-    ]
+    activos = ['BTC', 'ETH', 'SOL', 'TRUMP', 'MELANIA',
+               'EURUSD', 'GBPUSD', 'USDCHF', 'AUDCAD', 'EURJPY', 'UKO']
     
-    for activo in activos_ordenados:
+    for activo in activos:
         config = MIS_ACTIVOS.get(activo, {})
         nombre = config.get('nombre', activo)
         
@@ -403,7 +504,8 @@ def escanear_todos():
             senal = analizador.analizar(activo)
             
             emoji = "🟢" if senal.direccion == Direccion.CALL else "🔴" if senal.direccion == Direccion.PUT else "⚪"
-            print(f"{emoji} {'⭐'*senal.fuerza}")
+            trend_emoji = "📈" if "ALCISTA" in senal.tendencia else "📉" if "BAJISTA" in senal.tendencia else "↔️"
+            print(f"{emoji} {'⭐'*senal.fuerza} {trend_emoji} {senal.tendencia}")
             
             resultados.append((activo, senal))
             
@@ -418,7 +520,6 @@ def escanear_todos():
         print("  MEJORES SEÑALES AHORA")
         print("🔥"*20)
         
-        # Ordenar por fuerza
         fuertes.sort(key=lambda x: x[1].fuerza, reverse=True)
         
         for activo, senal in fuertes:
@@ -426,7 +527,8 @@ def escanear_todos():
     else:
         print("\n" + "⚪"*20)
         print("  No hay señales fuertes ahora")
-        print("  Espera unos minutos y vuelve a escanear")
+        print("  El mercado no tiene entradas claras")
+        print("  Espera mejores condiciones")
         print("⚪"*20)
     
     return resultados
@@ -436,7 +538,8 @@ def menu():
     """Menú interactivo."""
     
     print("\n" + "🎯"*20)
-    print("  MIS BINARIAS OTC")
+    print("  MIS BINARIAS OTC v2.0")
+    print("  RESPETA TENDENCIA")
     print("🎯"*20)
     
     print("\n📊 MIS ACTIVOS:")
@@ -444,10 +547,12 @@ def menu():
     print("  FOREX:  EURUSD, GBPUSD, USDCHF, AUDCAD, EURJPY")
     print("  OTROS:  UKO (Petróleo)")
     
-    print("\n💡 COMANDOS:")
-    print("  • Escribe un activo: BTC, EURUSD, etc.")
-    print("  • 'todos' = escanear todos")
-    print("  • 'salir' = salir")
+    print("\n⚠️  REGLAS v2.0:")
+    print("  • Tendencia BAJISTA fuerte → Solo PUT")
+    print("  • Tendencia ALCISTA fuerte → Solo CALL")
+    print("  • No operar contra la tendencia")
+    
+    print("\n💡 COMANDOS: 'todos', 'salir', o un activo")
     
     analizador = AnalizadorOTC()
     
@@ -463,7 +568,6 @@ def menu():
                 escanear_todos()
                 continue
             
-            # Normalizar entrada
             entrada = entrada.replace('/', '').replace('-', '').replace(' ', '')
             
             print(f"\n⏳ Analizando {entrada}...")
