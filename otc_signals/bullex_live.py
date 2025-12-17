@@ -28,9 +28,10 @@ except ImportError:
 # ⚠️ Actualiza estos valores si expiran
 BULLEX_COOKIES = {
     "ssid": "8fdcce6b8186c946a35d96f93122363n",
-    "identity": "901b317a53bee6be26e4437608f80e9fc2855",  # Puede estar incompleto
+    "identity": "901b317a53bee6be26e4437608f80e9fc2855193d58c6a1b74b07f8385825e3cbb3d5570b74203501f1834718b4241908a377769e69fb16127f8c5e576b3c6536d2fa1ae20d0200831ffe3aad6d9c9f8a141cd0d017289fb9ab0a30a253a4272da0bd9115d8e9e3d2689c8d862bebae7bbfa37af986cb19cf02bd11b27500f32ab591465630e11056c1ceab425c2fb8776bff3f8619a6c5ff06d1e9fc06bb4d3619e62c31c6b6e6be07e14bce9d11db07b45f8dfe3206e6be07e14bce9d11fecfc8cc5ec99f427e58a3757ce1eb443d755b4816b7b5da",
     "device_id": "0d82d9b5-bcd6-4829-8687-25e61f62429a",
     "platform": "187",
+    "platform_version": "3821.3.9286.b2b.release",
     "lang": "es_ES"
 }
 
