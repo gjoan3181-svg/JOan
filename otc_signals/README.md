@@ -2,6 +2,8 @@
 
 ## 🚀 Sistema de Señales de Trading - SIN API KEYS
 
+### ⭐ NUEVO: Soporte para OPCIONES BINARIAS OTC
+
 Sistema completo de análisis técnico y generación de señales para:
 - **Criptomonedas** (BTC, ETH, SOL, y 100+ más)
 - **Acciones** (incluyendo OTC/Pink Sheets)
@@ -25,7 +27,69 @@ pip3 install pandas numpy yfinance ta requests
 
 ---
 
-## 🎯 USO RÁPIDO
+## 🎯 OPCIONES BINARIAS OTC
+
+Script especializado para binarias - Solo CALL o PUT, sin Stop Loss ni Take Profit.
+
+### Uso Rápido
+
+```bash
+# Analizar una moneda
+python3 binarias.py BTC
+
+# Analizar varias
+python3 binarias.py BTC ETH SOL
+
+# Escanear mercado (buscar señales fuertes)
+python3 binarias.py --scan
+
+# Modo interactivo
+python3 binarias.py
+```
+
+### ¿Qué te muestra?
+
+```
+╔════════════════════════════════════════════════╗
+║                    🟢 CALL ↑                    ║
+╚════════════════════════════════════════════════╝
+
+📊 Probabilidad: 85%
+💪 Fuerza: ⭐⭐⭐⭐☆
+⏱️  Expiración: 3-5 min
+🚦 Momento: 🔥 AHORA
+
+📋 RAZONES:
+   • 💪 Tres Soldados Blancos
+   • 📈 Momentum alcista
+   • 📉 Precio en zona inferior de Bollinger
+```
+
+### Indicadores que Analiza para Binarias
+
+| Indicador | Uso en Binarias |
+|-----------|-----------------|
+| **Patrones de Velas** | Martillo, Envolvente, Doji, etc. |
+| **Momentum** | Dirección de corto plazo |
+| **RSI** | Zonas de sobreventa/sobrecompra |
+| **Stochastic** | Cruces en zonas extremas |
+| **Bollinger** | Rebotes en bandas |
+| **MACD** | Cruces de señal |
+| **EMAs** | Tendencia general |
+
+### Niveles de Fuerza
+
+| Fuerza | Significado | Acción |
+|--------|-------------|--------|
+| ⭐⭐⭐⭐⭐ | Señal muy fuerte | Operar con confianza |
+| ⭐⭐⭐⭐☆ | Señal fuerte | Operar |
+| ⭐⭐⭐☆☆ | Señal moderada | Operar con precaución |
+| ⭐⭐☆☆☆ | Señal débil | Esperar confirmación |
+| ⭐☆☆☆☆ | Muy débil | No operar |
+
+---
+
+## 🎯 USO RÁPIDO (Trading General)
 
 ### Analizar una moneda específica
 
