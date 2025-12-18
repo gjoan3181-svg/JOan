@@ -45,9 +45,10 @@ import time
 MI_SSID = "e8b7b6185348833f922e675fe840fc3f"
 
 # 👇 TELEGRAM (para alertas):
+# Nota: Verifica tu token en @BotFather de Telegram
 TELEGRAM_TOKEN = "8406117917:AAEJ7s3ecN7Ww8r_xrtMRVDklz8E2VHdTU"
 TELEGRAM_CHAT_ID = "5495826471"
-TELEGRAM_ACTIVO = True  # Cambiar a False para desactivar
+TELEGRAM_ACTIVO = False  # Desactivado hasta corregir token
 
 # URLs
 WS_URL = "wss://ws.trade.bull-ex.com/echo/websocket"
