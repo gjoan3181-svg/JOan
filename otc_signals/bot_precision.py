@@ -75,23 +75,23 @@ class ConfigPrecision:
     Cada parámetro está calculado para maximizar win rate.
     """
     
-    # ══════════ FILTROS DE SEÑAL (MÁS ESTRICTOS) ══════════
-    UMBRAL_SENTIMIENTO = 92      # Solo señales con >92% sentimiento (antes: 88%)
-    PROBABILIDAD_MINIMA = 90     # Probabilidad mínima 90% (antes: 85%)
-    PUNTUACION_MINIMA = 85       # Puntuación técnica mínima 85/100
+    # ══════════ FILTROS DE SEÑAL ══════════
+    UMBRAL_SENTIMIENTO = 85      # Solo señales con >85% sentimiento
+    PROBABILIDAD_MINIMA = 80     # Probabilidad mínima 80%
+    PUNTUACION_MINIMA = 75       # Puntuación técnica mínima 75/100
     
     # ══════════ CONFIRMACIONES REQUERIDAS ══════════
-    MIN_CONFIRMACIONES = 4       # Mínimo 4 indicadores confirmando
+    MIN_CONFIRMACIONES = 3       # Mínimo 3 indicadores confirmando
     RECHAZAR_DIVERGENCIAS = True # Rechazar si técnico contradice sentimiento
     
     # ══════════ TIEMPOS ══════════
     ANTICIPACION_MINUTOS = 2     # Señal 2 min antes de entrada
     DURACION_OPERACION = 2       # Operación de 2 minutos
-    COOLDOWN_ACTIVO = 600        # 10 min entre señales del mismo activo (antes: 5)
-    COOLDOWN_GLOBAL = 120        # 2 min entre cualquier señal
+    COOLDOWN_ACTIVO = 300        # 5 min entre señales del mismo activo
+    COOLDOWN_GLOBAL = 60         # 1 min entre cualquier señal
     
     # ══════════ LÍMITES ══════════
-    MAX_SENALES_HORA = 6         # Máximo 6 señales por hora (antes: 15)
+    MAX_SENALES_HORA = 10        # Máximo 10 señales por hora
     UNA_SENAL_A_LA_VEZ = True    # Solo mostrar 1 señal, la mejor
     
     # ══════════ ANÁLISIS TÉCNICO ══════════
