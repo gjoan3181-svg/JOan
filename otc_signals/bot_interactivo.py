@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
 """
 ══════════════════════════════════════════════════════════════════════════════════
-   🎯 BULLEX BOT - ESTRATEGIA MEAN REVERSION + TELEGRAM
+   🎯 BOT MEAN REVERSION - ANÁLISIS TÉCNICO PURO
 ══════════════════════════════════════════════════════════════════════════════════
 
-   ✅ ESTRATEGIA MEAN REVERSION:
-   ─────────────────────────────────────────────────────────────────────────────
-   • EMA 20 (la media a la que el precio regresa)
-   • RSI 14 (extremos: ≤25 sobreventa, ≥75 sobrecompra)
-   • Bollinger Bands 20,2 (detectar extremos)
-   • Vela de freno (rechazo del precio)
-   • Confirmación (no nuevo high/low)
-   • Filtro de volatilidad (rechaza mercado loco)
-   • Máximo 2 trades por par
-   ─────────────────────────────────────────────────────────────────────────────
-
-   ✅ CARACTERÍSTICAS:
-   • Pedir señales manualmente
-   • Modo automático
-   • Marcar ganadas/perdidas
-   • Alertas por Telegram
-   • Explicación del PORQUÉ
-
-   Uso: python3 bot_interactivo.py
+   ✅ SIN SENTIMIENTO - Solo análisis técnico
+   
+   ESTRATEGIA:
+   • RSI en extremos (≤30 o ≥70)
+   • Precio alejado de EMA20
+   • Bollinger Bands (rebote desde bandas)
+   • Vela de freno/confirmación
+   • Filtro de volatilidad
 
 ══════════════════════════════════════════════════════════════════════════════════
 """
@@ -33,7 +22,7 @@ import websockets
 import requests
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 import os
 import time
 
@@ -41,163 +30,98 @@ import time
 #                              CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# 👇 TU SSID DE BULLEX:
 MI_SSID = "e8b7b6185348833f922e675fe840fc3f"
 
-# 👇 TELEGRAM (para alertas):
-# Nota: Verifica tu token en @BotFather de Telegram
-TELEGRAM_TOKEN = "8406117917:AAEJ7s3ecN7Ww8r_xrtMRVDklz8E2VHdTU"
+# TELEGRAM (desactivado hasta tener token válido)
+TELEGRAM_TOKEN = ""
 TELEGRAM_CHAT_ID = "5495826471"
-TELEGRAM_ACTIVO = False  # Desactivado hasta corregir token
+TELEGRAM_ACTIVO = False
 
-# URLs
 WS_URL = "wss://ws.trade.bull-ex.com/echo/websocket"
-HISTORIAL_FILE = "historial_meanrev.json"
-
-# Zona horaria República Dominicana (UTC-4)
+HISTORIAL_FILE = "historial_tecnico.json"
 RD_TZ = timezone(timedelta(hours=-4))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#                    🎯 CONFIGURACIÓN DE ESTRATEGIA MEAN REVERSION
+#                    🎯 CONFIGURACIÓN MEAN REVERSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Config:
-    # ══════════ INDICADORES MEAN REVERSION ══════════
-    EMA_PERIODO = 20           # EMA 20 (la media)
-    RSI_PERIODO = 14           # RSI 14
-    RSI_SOBREVENTA = 35        # RSI ≤ 35 para CALL (más flexible)
-    RSI_SOBRECOMPRA = 65       # RSI ≥ 65 para PUT (más flexible)
-    BB_PERIODO = 20            # Bollinger Bands periodo
-    BB_STD = 2                 # Bollinger Bands desviación
+    # RSI
+    RSI_PERIODO = 14
+    RSI_SOBREVENTA = 30        # RSI ≤ 30 para CALL
+    RSI_SOBRECOMPRA = 70       # RSI ≥ 70 para PUT
     
-    # ══════════ FILTROS ══════════
-    UMBRAL_SENTIMIENTO = 75    # Sentimiento mínimo 75%
-    MIN_VELAS = 10             # Mínimo de velas para analizar (reducido)
+    # EMA
+    EMA_PERIODO = 20
     
-    # ══════════ FILTRO VOLATILIDAD ══════════
-    MAX_VELA_RATIO = 3.0       # Rechazar si vela es 3x más grande que promedio
-    VELAS_GRANDES_MAX = 3      # Máx velas grandes seguidas permitidas
+    # Bollinger
+    BB_PERIODO = 20
+    BB_STD = 2
     
-    # ══════════ GESTIÓN DE RIESGO ══════════
-    MAX_TRADES_POR_PAR = 5     # Máximo 5 trades por par
-    PAUSA_TRAS_PERDIDAS = 3    # Pausar tras 3 pérdidas seguidas
-    TIEMPO_PAUSA = 600         # 10 minutos de pausa (en segundos)
+    # Filtros
+    MIN_VELAS = 25
+    PUNTUACION_MINIMA = 60
     
-    # ══════════ TIEMPOS ══════════
-    DURACION_OPERACION = 1     # 1 minuto expiración
-    COOLDOWN_ACTIVO = 60       # 1 min entre señales del mismo activo
+    # Gestión
+    MAX_TRADES_POR_PAR = 5
+    COOLDOWN_ACTIVO = 60
+    DURACION_OP = 1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#               🎮 ACTIVOS PERMITIDOS
+#               🎮 ACTIVOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 try:
-    from config_activos import get_activos_habilitados, ACTIVOS
-except ImportError:
-    ACTIVOS = {
-        1:   {"nombre": "EUR/USD",     "mercado": "FOREX",  "simbolo": "EUR/USD (OTC)",   "activo": True},
-        212: {"nombre": "Bitcoin",     "mercado": "CRYPTO", "simbolo": "BTC/USD (OTC)",   "activo": True},
-    }
+    from config_activos import get_activos_habilitados
+except:
     def get_activos_habilitados():
-        return {k: v for k, v in ACTIVOS.items() if v.get("activo", True)}
+        return {
+            1: {"nombre": "EUR/USD", "mercado": "FOREX", "simbolo": "EUR/USD (OTC)", "activo": True},
+            212: {"nombre": "Bitcoin", "mercado": "CRYPTO", "simbolo": "BTC/USD (OTC)", "activo": True},
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#                              FUNCIONES AUXILIARES
+#                              UTILIDADES
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def hora_rd():
     return datetime.now(RD_TZ)
 
 def fmt_hora(dt=None):
-    if dt is None:
-        dt = hora_rd()
-    return dt.strftime("%H:%M:%S")
+    return (dt or hora_rd()).strftime("%H:%M:%S")
 
 def fmt_fecha(dt=None):
-    if dt is None:
-        dt = hora_rd()
-    return dt.strftime("%d/%m/%Y")
+    return (dt or hora_rd()).strftime("%d/%m/%Y")
 
 def limpiar():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#                              📱 TELEGRAM
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def enviar_telegram(mensaje: str):
-    """Envía mensaje a Telegram"""
-    if not TELEGRAM_ACTIVO or not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+def enviar_telegram(msg):
+    if not TELEGRAM_ACTIVO or not TELEGRAM_TOKEN:
         return False
-    
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        data = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": mensaje,
-            "parse_mode": "HTML"
-        }
-        response = requests.post(url, data=data, timeout=10)
-        return response.status_code == 200
-    except Exception as e:
-        print(f"  ⚠️ Error Telegram: {e}")
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": msg, "parse_mode": "HTML"}, timeout=5)
+        return True
+    except:
         return False
 
 
-def formato_telegram(senal: dict) -> str:
-    """Formatea señal para Telegram"""
-    direccion = senal['direccion']
-    emoji_dir = "🟢" if direccion == "CALL" else "🔴"
-    
-    msg = f"""
-{emoji_dir} <b>SEÑAL #{senal['numero']}</b> {emoji_dir}
-
-📍 <b>{senal['nombre']}</b>
-🏷️ {senal['simbolo']}
-
-{'🟢🟢🟢 COMPRAR (CALL) ↑' if direccion == 'CALL' else '🔴🔴🔴 VENDER (PUT) ↓'}
-
-📊 <b>Análisis:</b>
-• RSI: {senal.get('rsi', 'N/A')}
-• Precio vs EMA20: {senal.get('precio_vs_ema', 'N/A')}
-• Bollinger: {senal.get('bollinger_pos', 'N/A')}
-
-📋 <b>¿Por qué?</b>
-"""
-    for razon in senal.get('razones', [])[:4]:
-        msg += f"• {razon}\n"
-    
-    msg += f"""
-⏱️ Expiración: {Config.DURACION_OPERACION} minuto(s)
-🕐 Hora: {senal['hora']}
-
-💡 <i>Responde G si GANASTE o P si PERDISTE</i>
-"""
-    return msg
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
-#                    🔬 ANALIZADOR MEAN REVERSION
+#                    🔬 ANALIZADOR TÉCNICO PURO
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class AnalizadorMeanReversion:
-    """
-    Analizador basado en Mean Reversion (Reversión a la Media)
-    
-    Lógica: El precio en OTC tiende a volver a la media (EMA20).
-    Esperamos que se estire a un extremo y vuelva.
-    """
+class AnalizadorTecnico:
+    """Análisis técnico puro - Sin sentimiento"""
     
     def __init__(self):
         self.velas = defaultdict(list)
-        self.max_velas = 50
+        self.max_velas = 100
     
     def agregar_vela(self, aid: int, vela: dict):
-        """Agrega una vela al historial"""
         datos = {
             'open': float(vela.get('open', 0)),
             'high': float(vela.get('max', vela.get('high', 0))),
@@ -205,386 +129,275 @@ class AnalizadorMeanReversion:
             'close': float(vela.get('close', 0)),
             'time': vela.get('time', time.time())
         }
-        
-        # Solo agregar si tiene datos válidos
         if datos['close'] > 0:
             self.velas[aid].append(datos)
             if len(self.velas[aid]) > self.max_velas:
                 self.velas[aid].pop(0)
     
+    def tiene_datos(self, aid: int) -> bool:
+        return len(self.velas.get(aid, [])) >= Config.MIN_VELAS
+    
     def calcular_ema(self, precios: List[float], periodo: int) -> float:
-        """Calcula EMA"""
         if len(precios) < periodo:
             return sum(precios) / len(precios) if precios else 0
-        
-        multiplicador = 2 / (periodo + 1)
+        mult = 2 / (periodo + 1)
         ema = sum(precios[:periodo]) / periodo
-        
-        for precio in precios[periodo:]:
-            ema = (precio * multiplicador) + (ema * (1 - multiplicador))
-        
+        for p in precios[periodo:]:
+            ema = (p * mult) + (ema * (1 - mult))
         return ema
     
     def calcular_rsi(self, precios: List[float], periodo: int = 14) -> float:
-        """Calcula RSI"""
         if len(precios) < periodo + 1:
             return 50
-        
         cambios = [precios[i] - precios[i-1] for i in range(1, len(precios))]
         ganancias = [max(c, 0) for c in cambios[-periodo:]]
         perdidas = [abs(min(c, 0)) for c in cambios[-periodo:]]
-        
-        avg_ganancia = sum(ganancias) / periodo
-        avg_perdida = sum(perdidas) / periodo
-        
-        if avg_perdida == 0:
-            return 100 if avg_ganancia > 0 else 50
-        
-        rs = avg_ganancia / avg_perdida
-        rsi = 100 - (100 / (1 + rs))
-        
-        return rsi
+        avg_g = sum(ganancias) / periodo
+        avg_p = sum(perdidas) / periodo
+        if avg_p == 0:
+            return 100 if avg_g > 0 else 50
+        rs = avg_g / avg_p
+        return 100 - (100 / (1 + rs))
     
-    def calcular_bollinger(self, precios: List[float], periodo: int = 20, std_mult: float = 2) -> tuple:
-        """Calcula Bandas de Bollinger. Retorna (upper, middle, lower)"""
+    def calcular_bollinger(self, precios: List[float], periodo: int = 20, std_mult: float = 2) -> Tuple:
         if len(precios) < periodo:
             return None, None, None
-        
         ultimos = precios[-periodo:]
         media = sum(ultimos) / periodo
-        
-        # Desviación estándar
         varianza = sum((p - media) ** 2 for p in ultimos) / periodo
         std = varianza ** 0.5
-        
-        upper = media + (std * std_mult)
-        lower = media - (std * std_mult)
-        
-        return upper, media, lower
+        return media + (std * std_mult), media, media - (std * std_mult)
     
-    def detectar_vela_freno(self, velas: List[dict], direccion: str) -> bool:
-        """
-        Detecta vela de freno (rechazo).
-        
-        Para CALL (rebote desde abajo):
-        - Cuerpo pequeño con mecha inferior larga, o
-        - Vela verde después de roja fuerte
-        
-        Para PUT (rebote desde arriba):
-        - Cuerpo pequeño con mecha superior larga, o
-        - Vela roja después de verde fuerte
-        """
+    def detectar_vela_rechazo(self, velas: List[dict], direccion: str) -> Tuple[bool, str]:
+        """Detecta vela de rechazo (pin bar, hammer, shooting star)"""
         if len(velas) < 2:
-            return False
+            return False, ""
         
-        ultima = velas[-1]
-        anterior = velas[-2]
+        v = velas[-1]
+        cuerpo = abs(v['close'] - v['open'])
+        rango = v['high'] - v['low']
         
-        # Tamaño del cuerpo y mechas
-        cuerpo = abs(ultima['close'] - ultima['open'])
-        mecha_superior = ultima['high'] - max(ultima['open'], ultima['close'])
-        mecha_inferior = min(ultima['open'], ultima['close']) - ultima['low']
-        rango_total = ultima['high'] - ultima['low']
+        if rango == 0:
+            return False, ""
         
-        if rango_total == 0:
-            return False
-        
-        # Ratios
-        ratio_cuerpo = cuerpo / rango_total
-        ratio_mecha_inf = mecha_inferior / rango_total
-        ratio_mecha_sup = mecha_superior / rango_total
+        mecha_sup = v['high'] - max(v['open'], v['close'])
+        mecha_inf = min(v['open'], v['close']) - v['low']
         
         if direccion == "CALL":
-            # Vela de freno alcista: mecha inferior larga o verde tras roja
-            if ratio_mecha_inf >= 0.5 and ratio_cuerpo <= 0.4:
-                return True  # Pin bar / hammer
-            
-            # Vela verde después de roja fuerte
-            if (ultima['close'] > ultima['open'] and 
-                anterior['close'] < anterior['open'] and
-                abs(anterior['close'] - anterior['open']) > cuerpo):
-                return True
+            # Hammer: mecha inferior larga, cuerpo pequeño arriba
+            if mecha_inf >= rango * 0.6 and cuerpo <= rango * 0.3:
+                return True, "Hammer (martillo)"
+            # Vela verde después de rojas
+            if v['close'] > v['open'] and velas[-2]['close'] < velas[-2]['open']:
+                return True, "Vela alcista de reversión"
         
         elif direccion == "PUT":
-            # Vela de freno bajista: mecha superior larga o roja tras verde
-            if ratio_mecha_sup >= 0.5 and ratio_cuerpo <= 0.4:
-                return True  # Shooting star
-            
-            # Vela roja después de verde fuerte
-            if (ultima['close'] < ultima['open'] and 
-                anterior['close'] > anterior['open'] and
-                abs(anterior['close'] - anterior['open']) > cuerpo):
-                return True
+            # Shooting star: mecha superior larga, cuerpo pequeño abajo
+            if mecha_sup >= rango * 0.6 and cuerpo <= rango * 0.3:
+                return True, "Shooting Star"
+            # Vela roja después de verdes
+            if v['close'] < v['open'] and velas[-2]['close'] > velas[-2]['open']:
+                return True, "Vela bajista de reversión"
         
-        return False
+        return False, ""
     
-    def confirmar_no_nuevo_extremo(self, velas: List[dict], direccion: str) -> bool:
+    def analizar_activo(self, aid: int) -> Optional[dict]:
         """
-        Confirma que la última vela NO hizo nuevo mínimo (CALL) o nuevo máximo (PUT).
-        Esto indica que el rebote está empezando.
-        """
-        if len(velas) < 3:
-            return False
+        Analiza un activo y retorna oportunidad si existe.
         
-        ultima = velas[-1]
-        anterior = velas[-2]
+        CALL cuando:
+        - RSI ≤ 30 (sobreventa)
+        - Precio debajo de EMA20
+        - Precio cerca/toca banda inferior
+        - Vela de rechazo alcista
         
-        if direccion == "CALL":
-            # Para CALL: la última vela NO debe hacer nuevo mínimo
-            return ultima['low'] >= anterior['low']
-        
-        elif direccion == "PUT":
-            # Para PUT: la última vela NO debe hacer nuevo máximo
-            return ultima['high'] <= anterior['high']
-        
-        return False
-    
-    def filtrar_mercado_loco(self, velas: List[dict]) -> tuple:
-        """
-        Filtra mercados con alta volatilidad.
-        Retorna (es_tranquilo, razon)
-        """
-        if len(velas) < 10:
-            return True, "Datos insuficientes"
-        
-        # Calcular tamaño promedio de velas
-        rangos = [v['high'] - v['low'] for v in velas[-10:]]
-        promedio = sum(rangos) / len(rangos)
-        
-        # Verificar últimas 3 velas
-        ultimas_3 = velas[-3:]
-        velas_grandes = 0
-        
-        for v in ultimas_3:
-            rango = v['high'] - v['low']
-            if promedio > 0 and rango > promedio * Config.MAX_VELA_RATIO:
-                velas_grandes += 1
-        
-        if velas_grandes >= Config.VELAS_GRANDES_MAX:
-            return False, f"Mercado volátil ({velas_grandes} velas grandes)"
-        
-        return True, "Mercado tranquilo ✓"
-    
-    def analizar_mean_reversion(self, aid: int, sentimiento_pct: float = None) -> Optional[dict]:
-        """
-        Analiza usando estrategia Mean Reversion + Sentimiento.
-        
-        PRIORIDAD 1 - Mean Reversion:
-        - RSI en extremos + precio alejado de EMA
-        
-        PRIORIDAD 2 - Sentimiento Fuerte:
-        - Si sentimiento ≥ 75%, genera señal
+        PUT cuando:
+        - RSI ≥ 70 (sobrecompra)
+        - Precio encima de EMA20
+        - Precio cerca/toca banda superior
+        - Vela de rechazo bajista
         """
         velas = self.velas.get(aid, [])
+        if len(velas) < Config.MIN_VELAS:
+            return None
         
+        precios = [v['close'] for v in velas]
+        precio = precios[-1]
+        
+        # Calcular indicadores
+        rsi = self.calcular_rsi(precios, Config.RSI_PERIODO)
+        ema = self.calcular_ema(precios, Config.EMA_PERIODO)
+        bb_upper, bb_middle, bb_lower = self.calcular_bollinger(precios, Config.BB_PERIODO, Config.BB_STD)
+        
+        if not bb_upper:
+            return None
+        
+        # Posición en Bollinger (0-100, donde 0 es banda inferior)
+        bb_pos = ((precio - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
+        
+        # Distancia a EMA
+        dist_ema = ((precio - ema) / ema) * 100
+        
+        puntos = 0
         razones = []
         direccion = None
-        puntuacion = 0
-        rsi = 50
-        precio_vs_ema = "N/A"
-        bollinger_pos = "N/A"
         
-        # ═══════════ ESTRATEGIA 1: SENTIMIENTO FUERTE ═══════════
-        # Si el sentimiento es muy fuerte, usarlo directamente
-        if sentimiento_pct is not None:
-            if sentimiento_pct >= Config.UMBRAL_SENTIMIENTO:
+        # ════════════════ ANÁLISIS CALL ════════════════
+        if rsi <= Config.RSI_SOBREVENTA:
+            direccion = "CALL"
+            puntos += 30
+            razones.append(f"✅ RSI en SOBREVENTA: {rsi:.1f}")
+            
+            if precio < ema:
+                puntos += 15
+                razones.append(f"✅ Precio {abs(dist_ema):.2f}% debajo de EMA20")
+            
+            if bb_pos <= 20:
+                puntos += 20
+                razones.append(f"✅ Precio en zona INFERIOR de Bollinger ({bb_pos:.0f}%)")
+            elif bb_pos <= 35:
+                puntos += 10
+                razones.append(f"✅ Precio cerca de banda inferior ({bb_pos:.0f}%)")
+            
+            tiene_rechazo, tipo_rechazo = self.detectar_vela_rechazo(velas, "CALL")
+            if tiene_rechazo:
+                puntos += 20
+                razones.append(f"✅ {tipo_rechazo} detectado")
+            
+            # Confirmar que no sigue cayendo
+            if velas[-1]['close'] > velas[-1]['open']:
+                puntos += 10
+                razones.append(f"✅ Última vela alcista (confirmación)")
+        
+        # ════════════════ ANÁLISIS PUT ════════════════
+        elif rsi >= Config.RSI_SOBRECOMPRA:
+            direccion = "PUT"
+            puntos += 30
+            razones.append(f"✅ RSI en SOBRECOMPRA: {rsi:.1f}")
+            
+            if precio > ema:
+                puntos += 15
+                razones.append(f"✅ Precio {abs(dist_ema):.2f}% encima de EMA20")
+            
+            if bb_pos >= 80:
+                puntos += 20
+                razones.append(f"✅ Precio en zona SUPERIOR de Bollinger ({bb_pos:.0f}%)")
+            elif bb_pos >= 65:
+                puntos += 10
+                razones.append(f"✅ Precio cerca de banda superior ({bb_pos:.0f}%)")
+            
+            tiene_rechazo, tipo_rechazo = self.detectar_vela_rechazo(velas, "PUT")
+            if tiene_rechazo:
+                puntos += 20
+                razones.append(f"✅ {tipo_rechazo} detectado")
+            
+            # Confirmar que no sigue subiendo
+            if velas[-1]['close'] < velas[-1]['open']:
+                puntos += 10
+                razones.append(f"✅ Última vela bajista (confirmación)")
+        
+        # ════════════════ ANÁLISIS ALTERNATIVO (RSI moderado) ════════════════
+        # Si no hay RSI extremo, buscar otras condiciones fuertes
+        if direccion is None:
+            # CALL: RSI bajo + precio muy debajo de banda
+            if rsi <= 40 and bb_pos <= 10:
                 direccion = "CALL"
-                sent_fuerza = sentimiento_pct
-                puntuacion = 70 + (sentimiento_pct - 75)  # 70-95 pts
-                razones.append(f"✅ Sentimiento CALL: {sent_fuerza:.0f}%")
-            elif sentimiento_pct <= (100 - Config.UMBRAL_SENTIMIENTO):
+                puntos = 50
+                razones.append(f"✅ RSI bajo: {rsi:.1f}")
+                razones.append(f"✅ Precio en EXTREMO inferior Bollinger ({bb_pos:.0f}%)")
+                
+                tiene_rechazo, tipo_rechazo = self.detectar_vela_rechazo(velas, "CALL")
+                if tiene_rechazo:
+                    puntos += 25
+                    razones.append(f"✅ {tipo_rechazo}")
+            
+            # PUT: RSI alto + precio muy encima de banda
+            elif rsi >= 60 and bb_pos >= 90:
                 direccion = "PUT"
-                sent_fuerza = 100 - sentimiento_pct
-                puntuacion = 70 + (sent_fuerza - 75)
-                razones.append(f"✅ Sentimiento PUT: {sent_fuerza:.0f}%")
+                puntos = 50
+                razones.append(f"✅ RSI alto: {rsi:.1f}")
+                razones.append(f"✅ Precio en EXTREMO superior Bollinger ({bb_pos:.0f}%)")
+                
+                tiene_rechazo, tipo_rechazo = self.detectar_vela_rechazo(velas, "PUT")
+                if tiene_rechazo:
+                    puntos += 25
+                    razones.append(f"✅ {tipo_rechazo}")
         
-        # ═══════════ ESTRATEGIA 2: MEAN REVERSION (BONUS) ═══════════
-        # Si tenemos suficientes velas, añadir análisis técnico
-        if len(velas) >= Config.MIN_VELAS:
-            precios_close = [v['close'] for v in velas]
-            precio_actual = precios_close[-1]
-            
-            # Calcular indicadores
-            ema20 = self.calcular_ema(precios_close, Config.EMA_PERIODO)
-            rsi = self.calcular_rsi(precios_close, Config.RSI_PERIODO)
-            bb_upper, bb_middle, bb_lower = self.calcular_bollinger(
-                precios_close, Config.BB_PERIODO, Config.BB_STD
-            )
-            
-            if ema20 and precio_actual:
-                diff_ema = ((precio_actual - ema20) / ema20) * 100
-                precio_vs_ema = f"{'Debajo' if precio_actual < ema20 else 'Encima'} ({abs(diff_ema):.2f}%)"
-            
-            # Verificar mercado tranquilo
-            es_tranquilo, razon_mercado = self.filtrar_mercado_loco(velas)
-            
-            # ═══════════ CALL - Rebote desde abajo ═══════════
-            if direccion == "CALL" or (direccion is None and sentimiento_pct and sentimiento_pct > 50):
-                if precio_actual < ema20:
-                    puntuacion += 5
-                    razones.append(f"✅ Precio debajo de EMA20")
-                
-                if rsi <= Config.RSI_SOBREVENTA:
-                    puntuacion += 10
-                    razones.append(f"✅ RSI sobreventa: {rsi:.1f}")
-                elif rsi <= 45:
-                    puntuacion += 5
-                    razones.append(f"➡️ RSI bajo: {rsi:.1f}")
-                
-                if bb_lower and precio_actual:
-                    dist_lower = ((precio_actual - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
-                    if dist_lower <= 30:
-                        puntuacion += 5
-                        razones.append(f"✅ Cerca de banda inferior")
-                        bollinger_pos = "Inferior"
-                
-                if self.detectar_vela_freno(velas, "CALL"):
-                    puntuacion += 5
-                    razones.append(f"✅ Vela de freno detectada")
-                
-                if es_tranquilo:
-                    puntuacion += 3
-                    razones.append(f"✅ {razon_mercado}")
-                
-                if direccion is None and puntuacion >= 70:
-                    direccion = "CALL"
-            
-            # ═══════════ PUT - Rebote desde arriba ═══════════
-            elif direccion == "PUT" or (direccion is None and sentimiento_pct and sentimiento_pct < 50):
-                if precio_actual > ema20:
-                    puntuacion += 5
-                    razones.append(f"✅ Precio encima de EMA20")
-                
-                if rsi >= Config.RSI_SOBRECOMPRA:
-                    puntuacion += 10
-                    razones.append(f"✅ RSI sobrecompra: {rsi:.1f}")
-                elif rsi >= 55:
-                    puntuacion += 5
-                    razones.append(f"➡️ RSI alto: {rsi:.1f}")
-                
-                if bb_upper and precio_actual:
-                    dist_upper = ((bb_upper - precio_actual) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
-                    if dist_upper <= 30:
-                        puntuacion += 5
-                        razones.append(f"✅ Cerca de banda superior")
-                        bollinger_pos = "Superior"
-                
-                if self.detectar_vela_freno(velas, "PUT"):
-                    puntuacion += 5
-                    razones.append(f"✅ Vela de freno detectada")
-                
-                if es_tranquilo:
-                    puntuacion += 3
-                    razones.append(f"✅ {razon_mercado}")
-                
-                if direccion is None and puntuacion >= 70:
-                    direccion = "PUT"
-        
-        # Si no hay señal válida
-        if direccion is None or puntuacion < 70:
+        if direccion is None or puntos < Config.PUNTUACION_MINIMA:
             return None
         
         return {
             'direccion': direccion,
-            'puntuacion': min(puntuacion, 99),
-            'rsi': f"{rsi:.1f}",
-            'precio_vs_ema': precio_vs_ema,
-            'bollinger_pos': bollinger_pos,
-            'razones': razones,
-            'ema20': 0,
-            'bb_upper': 0,
-            'bb_lower': 0
+            'puntuacion': min(puntos, 100),
+            'rsi': rsi,
+            'bb_pos': bb_pos,
+            'dist_ema': dist_ema,
+            'precio': precio,
+            'razones': razones
         }
+    
+    def buscar_mejor_oportunidad(self, activos: dict) -> Optional[Tuple[int, dict]]:
+        """Busca la mejor oportunidad entre todos los activos"""
+        mejor_aid = None
+        mejor_analisis = None
+        mejor_puntos = 0
+        
+        for aid in activos.keys():
+            analisis = self.analizar_activo(aid)
+            if analisis and analisis['puntuacion'] > mejor_puntos:
+                mejor_aid = aid
+                mejor_analisis = analisis
+                mejor_puntos = analisis['puntuacion']
+        
+        if mejor_aid:
+            return mejor_aid, mejor_analisis
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#                              GESTOR DE HISTORIAL
+#                              HISTORIAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class Historial:
     def __init__(self, archivo):
         self.archivo = archivo
         self.senales = []
-        self.trades_por_par = defaultdict(int)
-        self.perdidas_seguidas = 0
-        self.en_pausa = False
-        self.pausa_hasta = 0
         self.cargar()
     
     def cargar(self):
         try:
             if os.path.exists(self.archivo):
-                with open(self.archivo, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.senales = data.get('senales', [])
+                with open(self.archivo, 'r') as f:
+                    self.senales = json.load(f).get('senales', [])
         except:
             self.senales = []
     
     def guardar(self):
         try:
-            with open(self.archivo, 'w', encoding='utf-8') as f:
-                json.dump({
-                    'senales': self.senales,
-                    'actualizado': hora_rd().isoformat()
-                }, f, indent=2, ensure_ascii=False)
+            with open(self.archivo, 'w') as f:
+                json.dump({'senales': self.senales}, f, indent=2)
         except:
             pass
     
-    def puede_operar_par(self, simbolo: str) -> tuple:
-        """Verifica si se puede operar este par"""
-        # Verificar pausa
-        if self.en_pausa and time.time() < self.pausa_hasta:
-            restante = int(self.pausa_hasta - time.time())
-            return False, f"En pausa por {restante//60}:{restante%60:02d} min"
-        else:
-            self.en_pausa = False
-        
-        # Contar trades de hoy en este par
-        hoy = hora_rd().date()
-        trades_hoy = sum(1 for s in self.senales 
-                        if s.get('simbolo') == simbolo 
-                        and datetime.fromisoformat(s['timestamp']).date() == hoy)
-        
-        if trades_hoy >= Config.MAX_TRADES_POR_PAR:
-            return False, f"Máximo {Config.MAX_TRADES_POR_PAR} trades/día en {simbolo}"
-        
-        return True, "OK"
-    
-    def agregar(self, senal: dict) -> int:
+    def agregar(self, senal):
         self.senales.append(senal)
         self.guardar()
         return len(self.senales)
     
-    def marcar_resultado(self, numero: int, resultado: str) -> bool:
+    def marcar(self, num, resultado):
         for s in self.senales:
-            if s.get('numero') == numero:
+            if s.get('numero') == num:
                 s['resultado'] = resultado
                 s['verificado'] = True
-                s['fecha_verificacion'] = hora_rd().isoformat()
-                
-                # Gestión de rachas
-                if resultado == 'PERDIDA':
-                    self.perdidas_seguidas += 1
-                    if self.perdidas_seguidas >= Config.PAUSA_TRAS_PERDIDAS:
-                        self.en_pausa = True
-                        self.pausa_hasta = time.time() + Config.TIEMPO_PAUSA
-                        print(f"\n  ⚠️ {Config.PAUSA_TRAS_PERDIDAS} pérdidas seguidas. Pausa de {Config.TIEMPO_PAUSA//60} minutos.")
-                else:
-                    self.perdidas_seguidas = 0
-                
                 self.guardar()
                 return True
         return False
     
-    def obtener_pendientes(self) -> List[dict]:
-        return [s for s in self.senales if not s.get('verificado')]
-    
-    def estadisticas(self) -> dict:
+    def estadisticas(self):
         total = len(self.senales)
         verificadas = [s for s in self.senales if s.get('verificado')]
         ganadas = [s for s in verificadas if s.get('resultado') == 'GANADA']
         perdidas = [s for s in verificadas if s.get('resultado') == 'PERDIDA']
-        
         precision = (len(ganadas) / len(verificadas) * 100) if verificadas else 0
         
         racha = 0
@@ -594,12 +407,6 @@ class Historial:
             else:
                 break
         
-        hoy = hora_rd().date()
-        hoy_senales = [s for s in self.senales 
-                       if datetime.fromisoformat(s['timestamp']).date() == hoy]
-        hoy_verificadas = [s for s in hoy_senales if s.get('verificado')]
-        hoy_ganadas = [s for s in hoy_verificadas if s.get('resultado') == 'GANADA']
-        
         return {
             'total': total,
             'verificadas': len(verificadas),
@@ -607,116 +414,75 @@ class Historial:
             'perdidas': len(perdidas),
             'pendientes': total - len(verificadas),
             'precision': precision,
-            'racha': racha,
-            'hoy_total': len(hoy_senales),
-            'hoy_ganadas': len(hoy_ganadas),
-            'hoy_verificadas': len(hoy_verificadas),
-            'perdidas_seguidas': self.perdidas_seguidas,
-            'en_pausa': self.en_pausa
+            'racha': racha
         }
     
-    def ultimas(self, n=10) -> List[dict]:
-        return self.senales[-n:] if self.senales else []
+    def pendientes(self):
+        return [s for s in self.senales if not s.get('verificado')]
+    
+    def ultimas(self, n=10):
+        return self.senales[-n:]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#                         🏆 BOT INTERACTIVO
+#                         🏆 BOT PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class BotInteractivo:
-    def __init__(self, ssid: str):
+class Bot:
+    def __init__(self, ssid):
         self.ssid = ssid
         self.ws = None
         self.conectado = False
+        self.ejecutando = True
         
-        # Componentes
         self.historial = Historial(HISTORIAL_FILE)
-        self.analizador = AnalizadorMeanReversion()
+        self.analizador = AnalizadorTecnico()
         self.activos = get_activos_habilitados()
         
-        # Estado
         self.precios = {}
-        self.sentimientos = {}
-        self.ultima_senal = None
         self.senal_actual = None
-        self.modo_auto = False
-        self.ejecutando = True
-        self.numero_senal = len(self.historial.senales)
-        self.ultima_senal_activo = {}
+        self.numero = len(self.historial.senales)
+        self.ultima_senal_tiempo = {}
         
-        # Candidatas para señal
-        self.candidatas = {}
-        
-        print(f"\n  📊 Activos habilitados: {len(self.activos)}")
+        print(f"\n  📊 Activos: {len(self.activos)}")
     
     async def conectar(self):
-        print(f"\n  🔌 Conectando a Bullex...")
-        
+        print(f"\n  🔌 Conectando...")
         try:
             self.ws = await websockets.connect(
-                WS_URL,
-                origin='https://trade.bull-ex.com',
-                ping_interval=30,
-                ping_timeout=10
+                WS_URL, origin='https://trade.bull-ex.com',
+                ping_interval=30, ping_timeout=10
             )
-            
             await self.ws.send(json.dumps({'name': 'ssid', 'msg': self.ssid}))
             await asyncio.sleep(1)
-            
-            await self.ws.send(json.dumps({
-                'name': 'subscribeMessage',
-                'msg': {'name': 'traders-mood-changed'}
-            }))
-            await self.ws.send(json.dumps({
-                'name': 'subscribeMessage',
-                'msg': {'name': 'candle-generated'}
-            }))
-            
+            await self.ws.send(json.dumps({'name': 'subscribeMessage', 'msg': {'name': 'candle-generated'}}))
             self.conectado = True
-            print(f"  ✅ Conectado exitosamente")
-            
-            # Test Telegram
-            if TELEGRAM_ACTIVO:
-                if enviar_telegram("🤖 <b>Bot Iniciado</b>\n\nConectado a Bullex.\nEstrategia: Mean Reversion"):
-                    print(f"  📱 Telegram conectado")
-                else:
-                    print(f"  ⚠️ Telegram no disponible")
-            
+            print(f"  ✅ Conectado!")
             return True
-            
         except Exception as e:
             print(f"  ❌ Error: {e}")
             return False
     
-    def evaluar_senal(self, aid: int) -> Optional[dict]:
-        """Evalúa si hay señal válida para un activo"""
-        if aid not in self.activos:
+    def buscar_senal(self):
+        """Busca la mejor oportunidad en todos los activos"""
+        resultado = self.analizador.buscar_mejor_oportunidad(self.activos)
+        
+        if resultado is None:
             return None
         
-        activo = self.activos[aid]
+        aid, analisis = resultado
         
-        # Verificar si se puede operar
-        puede, razon = self.historial.puede_operar_par(activo['simbolo'])
-        if not puede:
-            return None
-        
-        # Cooldown por activo
-        if aid in self.ultima_senal_activo:
-            if time.time() - self.ultima_senal_activo[aid] < Config.COOLDOWN_ACTIVO:
+        # Verificar cooldown
+        if aid in self.ultima_senal_tiempo:
+            if time.time() - self.ultima_senal_tiempo[aid] < Config.COOLDOWN_ACTIVO:
                 return None
         
-        # Obtener sentimiento
-        sentimiento = self.sentimientos.get(aid, 50)
-        
-        # Analizar con Mean Reversion
-        analisis = self.analizador.analizar_mean_reversion(aid, sentimiento)
-        
-        if analisis is None:
-            return None
-        
+        activo = self.activos[aid]
+        self.numero += 1
         ahora = hora_rd()
         
-        return {
+        senal = {
+            'numero': self.numero,
             'activo_id': aid,
             'nombre': activo['nombre'],
             'simbolo': activo['simbolo'],
@@ -724,241 +490,165 @@ class BotInteractivo:
             'direccion': analisis['direccion'],
             'puntuacion': analisis['puntuacion'],
             'rsi': analisis['rsi'],
-            'precio_vs_ema': analisis['precio_vs_ema'],
-            'bollinger_pos': analisis['bollinger_pos'],
+            'bb_pos': analisis['bb_pos'],
             'razones': analisis['razones'],
-            'sentimiento': sentimiento,
-            'precio': self.precios.get(aid, 0),
+            'precio': analisis['precio'],
+            'hora': fmt_hora(ahora),
             'timestamp': ahora.isoformat(),
-            'hora': fmt_hora(ahora)
+            'verificado': False,
+            'resultado': None
         }
+        
+        self.ultima_senal_tiempo[aid] = time.time()
+        return senal
     
-    def obtener_mejor_senal(self) -> Optional[dict]:
-        """Busca la mejor señal entre todos los activos"""
-        mejor = None
-        mejor_punt = 0
-        
-        for aid in self.activos.keys():
-            senal = self.evaluar_senal(aid)
-            if senal and senal['puntuacion'] > mejor_punt:
-                mejor = senal
-                mejor_punt = senal['puntuacion']
-        
-        # También revisar candidatas recientes
-        for aid, senal in self.candidatas.items():
-            if senal['puntuacion'] > mejor_punt:
-                mejor = senal
-                mejor_punt = senal['puntuacion']
-        
-        return mejor
-    
-    def mostrar_senal(self, s: dict, numero: int = None):
-        """Muestra señal en consola y envía a Telegram"""
-        if numero is None:
-            self.numero_senal += 1
-            numero = self.numero_senal
-        
-        s['numero'] = numero
-        
-        direccion = s['direccion']
-        if direccion == 'CALL':
-            dir_emoji = "🟢🟢🟢"
-            dir_texto = "COMPRAR (CALL) ↑"
-        else:
-            dir_emoji = "🔴🔴🔴"
-            dir_texto = "VENDER (PUT) ↓"
+    def mostrar_senal(self, s):
+        dir_emoji = "🟢🟢🟢" if s['direccion'] == "CALL" else "🔴🔴🔴"
+        dir_texto = "COMPRAR (CALL) ↑" if s['direccion'] == "CALL" else "VENDER (PUT) ↓"
         
         punt = s['puntuacion']
-        if punt >= 90:
+        if punt >= 80:
             nivel = "🔥 EXCELENTE"
-            estrellas = "★★★★★"
-        elif punt >= 80:
+        elif punt >= 70:
             nivel = "✅ MUY BUENA"
-            estrellas = "★★★★☆"
         else:
             nivel = "📊 BUENA"
-            estrellas = "★★★☆☆"
         
         print("\n")
         print("╔" + "═" * 66 + "╗")
-        print(f"║  🎯 SEÑAL #{numero} - {nivel:<44}║")
-        print(f"║  {estrellas:<62}║")
+        print(f"║  🎯 SEÑAL #{s['numero']} - {nivel:<44}║")
         print("╠" + "═" * 66 + "╣")
-        print(f"║  📍 Activo:       {s['nombre']:<46}║")
-        print(f"║  🏷️  Símbolo:      {s['simbolo']:<46}║")
-        print(f"║  📊 Mercado:      {s['mercado']:<46}║")
+        print(f"║  📍 Activo:      {s['nombre']:<47}║")
+        print(f"║  🏷️  Símbolo:     {s['simbolo']:<47}║")
+        print(f"║  📊 Mercado:     {s['mercado']:<47}║")
         print("╠" + "═" * 66 + "╣")
         print(f"║     {dir_emoji}  {dir_texto:<50}║")
         print("╠" + "═" * 66 + "╣")
-        print(f"║  📈 Puntuación:      {s['puntuacion']:.0f}/100{' ' * 40}║")
-        print(f"║  📉 RSI:             {s['rsi']:<44}║")
-        print(f"║  📊 Precio vs EMA:   {s['precio_vs_ema']:<44}║")
-        print(f"║  📐 Bollinger:       {s['bollinger_pos']:<44}║")
+        print(f"║  📈 Puntuación:     {s['puntuacion']}/100{' ' * 41}║")
+        print(f"║  📉 RSI:            {s['rsi']:.1f}{' ' * 45}║")
+        print(f"║  📐 Bollinger:      {s['bb_pos']:.0f}%{' ' * 44}║")
         print("╠" + "═" * 66 + "╣")
-        print("║  📋 ¿POR QUÉ ESTA SEÑAL? (Mean Reversion)" + " " * 22 + "║")
+        print("║  📋 ¿POR QUÉ ESTA SEÑAL?" + " " * 40 + "║")
         print("║  " + "─" * 62 + "  ║")
         
-        for razon in s['razones'][:6]:
-            texto = razon[:60]
-            print(f"║  {texto:<64}║")
+        for r in s['razones'][:6]:
+            print(f"║  {r[:62]:<64}║")
         
         print("╠" + "═" * 66 + "╣")
-        print(f"║  ⏱️  Expiración:      {Config.DURACION_OPERACION} minuto(s){' ' * 38}║")
-        print(f"║  🕐 Hora:            {s['hora']:<44}║")
+        print(f"║  ⏱️  Expiración:     {Config.DURACION_OP} minuto(s){' ' * 38}║")
+        print(f"║  🕐 Hora:           {s['hora']:<45}║")
         print("╚" + "═" * 66 + "╝")
-        print("\n  💡 Usa 'g' para GANADA o 'p' para PERDIDA cuando termine")
+        print("\n  💡 Escribe 'g' si GANASTE o 'p' si PERDISTE")
         
-        # Enviar a Telegram
+        # Telegram
         if TELEGRAM_ACTIVO:
-            msg = formato_telegram(s)
+            msg = f"🎯 SEÑAL #{s['numero']}\n{s['simbolo']}\n{s['direccion']}\nRSI: {s['rsi']:.1f}"
             enviar_telegram(msg)
-        
-        # Marcar cooldown
-        self.ultima_senal_activo[s['activo_id']] = time.time()
         
         return s
     
-    def mostrar_estadisticas(self):
-        stats = self.historial.estadisticas()
-        
-        pausa_txt = ""
-        if stats['en_pausa']:
-            restante = int(self.historial.pausa_hasta - time.time())
-            if restante > 0:
-                pausa_txt = f" (Pausa: {restante//60}:{restante%60:02d})"
-        
+    def mostrar_stats(self):
+        st = self.historial.estadisticas()
         print("\n")
-        print("╔" + "═" * 58 + "╗")
-        print("║  📊 ESTADÍSTICAS - MEAN REVERSION" + " " * 22 + "║")
-        print("╠" + "═" * 58 + "╣")
-        print(f"║  📅 HOY:{' ' * 49}║")
-        print(f"║     Señales:        {stats['hoy_total']:<36}║")
-        print(f"║     Verificadas:    {stats['hoy_verificadas']:<36}║")
-        print(f"║     Ganadas:        {stats['hoy_ganadas']:<36}║")
-        print("╠" + "═" * 58 + "╣")
-        print(f"║  📈 HISTÓRICO:{' ' * 43}║")
-        print(f"║     Total señales:  {stats['total']:<36}║")
-        print(f"║     ✅ Ganadas:     {stats['ganadas']:<36}║")
-        print(f"║     ❌ Perdidas:    {stats['perdidas']:<36}║")
-        print(f"║     ⏳ Pendientes:  {stats['pendientes']:<36}║")
-        print("╠" + "═" * 58 + "╣")
-        print(f"║  🎯 PRECISIÓN:      {stats['precision']:.1f}%{' ' * 33}║")
-        print(f"║  🔥 Racha actual:   {stats['racha']} ganadas{' ' * 26}║")
-        print(f"║  ⚠️  Pérdidas seg:   {stats['perdidas_seguidas']}{pausa_txt:<34}║")
-        print("╚" + "═" * 58 + "╝")
+        print("╔" + "═" * 50 + "╗")
+        print("║  📊 ESTADÍSTICAS" + " " * 32 + "║")
+        print("╠" + "═" * 50 + "╣")
+        print(f"║  Total señales:    {st['total']:<29}║")
+        print(f"║  ✅ Ganadas:       {st['ganadas']:<29}║")
+        print(f"║  ❌ Perdidas:      {st['perdidas']:<29}║")
+        print(f"║  ⏳ Pendientes:    {st['pendientes']:<29}║")
+        print("╠" + "═" * 50 + "╣")
+        print(f"║  🎯 PRECISIÓN:     {st['precision']:.1f}%{' ' * 26}║")
+        print(f"║  🔥 Racha:         {st['racha']} ganadas{' ' * 21}║")
+        print("╚" + "═" * 50 + "╝")
     
     def mostrar_pendientes(self):
-        pendientes = self.historial.obtener_pendientes()
-        
-        if not pendientes:
-            print("\n  ✅ No hay señales pendientes\n")
+        pend = self.historial.pendientes()
+        if not pend:
+            print("\n  ✅ No hay señales pendientes")
             return
         
-        print("\n")
-        print("╔" + "═" * 58 + "╗")
-        print("║  ⏳ SEÑALES PENDIENTES" + " " * 34 + "║")
-        print("╠" + "═" * 58 + "╣")
-        
-        for s in pendientes[-10:]:
-            num = s.get('numero', '?')
-            simbolo = s.get('simbolo', 'N/A')[:18]
-            direccion = s.get('direccion', 'N/A')
-            hora = s.get('hora', 'N/A')
-            emoji = "🟢" if direccion == "CALL" else "🔴"
-            
-            print(f"║  #{num:<4} {simbolo:<20} {emoji} {direccion:<6} {hora:<8}║")
-        
-        print("╚" + "═" * 58 + "╝")
-        print("\n  💡 Usa 'g #' para GANADA o 'p #' para PERDIDA")
+        print("\n  ⏳ PENDIENTES:")
+        for s in pend[-10:]:
+            emoji = "🟢" if s['direccion'] == "CALL" else "🔴"
+            print(f"  #{s['numero']} {s['simbolo'][:15]:<15} {emoji} {s['direccion']}")
+        print("\n  💡 Usa 'g #' o 'p #' para marcar")
     
-    def mostrar_ultimas(self):
-        ultimas = self.historial.ultimas(10)
-        
-        if not ultimas:
-            print("\n  📭 No hay señales en el historial\n")
+    def mostrar_historial(self):
+        ult = self.historial.ultimas(10)
+        if not ult:
+            print("\n  📭 Sin historial")
             return
         
-        print("\n")
-        print("╔" + "═" * 66 + "╗")
-        print("║  📋 ÚLTIMAS 10 SEÑALES" + " " * 42 + "║")
-        print("╠" + "═" * 66 + "╣")
-        
-        for s in ultimas:
-            num = s.get('numero', '?')
-            simbolo = s.get('simbolo', 'N/A')[:18]
-            direccion = s.get('direccion', 'N/A')
-            resultado = s.get('resultado', 'PENDIENTE')
-            
-            dir_emoji = "🟢" if direccion == "CALL" else "🔴"
-            
-            if resultado == 'GANADA':
-                res_emoji = "✅"
-            elif resultado == 'PERDIDA':
-                res_emoji = "❌"
-            else:
-                res_emoji = "⏳"
-            
-            print(f"║  #{num:<4} {simbolo:<20} {dir_emoji} {direccion:<6} {res_emoji} {resultado:<12}║")
-        
-        print("╚" + "═" * 66 + "╝")
+        print("\n  📋 ÚLTIMAS SEÑALES:")
+        for s in ult:
+            dir_e = "🟢" if s['direccion'] == "CALL" else "🔴"
+            res = s.get('resultado', 'PEND')
+            res_e = "✅" if res == "GANADA" else "❌" if res == "PERDIDA" else "⏳"
+            print(f"  #{s['numero']} {s['simbolo'][:15]:<15} {dir_e} {res_e} {res}")
     
     def mostrar_menu(self):
         print("\n")
-        print("┌" + "─" * 54 + "┐")
-        print("│  📌 MENÚ - BOT MEAN REVERSION" + " " * 22 + "│")
-        print("├" + "─" * 54 + "┤")
-        print("│  [1] o [s] → Pedir SEÑAL ahora" + " " * 21 + "│")
-        print("│  [2] o [e] → Ver ESTADÍSTICAS" + " " * 22 + "│")
-        print("│  [3]       → Ver PENDIENTES" + " " * 24 + "│")
-        print("│  [4] o [h] → Ver HISTORIAL" + " " * 25 + "│")
-        print("│  [5] o [a] → Modo AUTO on/off" + " " * 22 + "│")
-        print("├" + "─" * 54 + "┤")
-        print("│  [g #] → Marcar # como GANADA" + " " * 22 + "│")
-        print("│  [p #] → Marcar # como PERDIDA" + " " * 21 + "│")
-        print("│  [g] / [p] → Marcar última señal" + " " * 18 + "│")
-        print("├" + "─" * 54 + "┤")
-        print("│  [q] → SALIR" + " " * 39 + "│")
-        print("└" + "─" * 54 + "┘")
-        
-        modo = "🟢 ACTIVADO" if self.modo_auto else "⚪ DESACTIVADO"
-        print(f"\n  🤖 Modo automático: {modo}")
-        print(f"  📱 Telegram: {'🟢 Activo' if TELEGRAM_ACTIVO else '⚪ Inactivo'}")
-        print(f"  🕐 Hora RD: {fmt_hora()}")
+        print("┌" + "─" * 45 + "┐")
+        print("│  📌 COMANDOS" + " " * 31 + "│")
+        print("├" + "─" * 45 + "┤")
+        print("│  [1] [s] → BUSCAR SEÑAL" + " " * 19 + "│")
+        print("│  [2] [e] → Estadísticas" + " " * 19 + "│")
+        print("│  [3]     → Pendientes" + " " * 21 + "│")
+        print("│  [4] [h] → Historial" + " " * 22 + "│")
+        print("├" + "─" * 45 + "┤")
+        print("│  [g]     → Marcar GANADA" + " " * 18 + "│")
+        print("│  [p]     → Marcar PERDIDA" + " " * 17 + "│")
+        print("│  [g #]   → Marcar # GANADA" + " " * 16 + "│")
+        print("│  [p #]   → Marcar # PERDIDA" + " " * 15 + "│")
+        print("├" + "─" * 45 + "┤")
+        print("│  [q]     → Salir" + " " * 26 + "│")
+        print("└" + "─" * 45 + "┘")
+        print(f"\n  🕐 {fmt_hora()} | Datos de {len([a for a in self.activos if self.analizador.tiene_datos(a)])} activos")
     
-    def procesar_comando(self, cmd: str) -> bool:
+    def comando(self, cmd):
         cmd = cmd.strip().lower()
         
-        if cmd in ['q', 'salir', 'exit']:
+        if cmd in ['q', 'salir']:
             return False
         
-        elif cmd in ['1', 's', 'senal', 'señal']:
-            mejor = self.obtener_mejor_senal()
-            if mejor:
-                senal = self.mostrar_senal(mejor)
+        elif cmd in ['1', 's', 'senal']:
+            senal = self.buscar_senal()
+            if senal:
+                self.mostrar_senal(senal)
                 self.historial.agregar(senal)
                 self.senal_actual = senal
-                self.candidatas.clear()
             else:
-                print("\n  ⏳ No hay señales válidas ahora.")
-                print("  💡 La estrategia Mean Reversion espera:")
-                print("     • RSI en extremos (≤25 o ≥75)")
-                print("     • Precio alejado de EMA20")
-                print("     • Vela de confirmación")
-                print("  ⏳ Espera unos minutos...")
+                # Mostrar estado de los activos
+                print("\n  ⏳ No hay oportunidades claras ahora.")
+                print("\n  📊 Estado de indicadores:")
+                
+                count = 0
+                for aid, info in self.activos.items():
+                    if self.analizador.tiene_datos(aid):
+                        velas = self.analizador.velas[aid]
+                        precios = [v['close'] for v in velas]
+                        rsi = self.analizador.calcular_rsi(precios)
+                        bb_u, bb_m, bb_l = self.analizador.calcular_bollinger(precios)
+                        if bb_u:
+                            bb_pos = ((precios[-1] - bb_l) / (bb_u - bb_l)) * 100
+                            emoji = "🟢" if rsi <= 35 else "🔴" if rsi >= 65 else "⚪"
+                            print(f"  {emoji} {info['simbolo'][:18]:<18} RSI:{rsi:5.1f}  BB:{bb_pos:5.1f}%")
+                            count += 1
+                            if count >= 10:
+                                break
+                
+                print("\n  💡 Busco RSI ≤30 (CALL) o ≥70 (PUT)")
+                print("  💡 Espera unos minutos e intenta de nuevo")
         
         elif cmd in ['2', 'e', 'stats']:
-            self.mostrar_estadisticas()
+            self.mostrar_stats()
         
         elif cmd in ['3', 'pendientes']:
             self.mostrar_pendientes()
         
         elif cmd in ['4', 'h', 'historial']:
-            self.mostrar_ultimas()
-        
-        elif cmd in ['5', 'a', 'auto']:
-            self.modo_auto = not self.modo_auto
-            estado = "ACTIVADO ✅" if self.modo_auto else "DESACTIVADO ⚪"
-            print(f"\n  🤖 Modo automático: {estado}")
+            self.mostrar_historial()
         
         elif cmd.startswith('g'):
             try:
@@ -966,216 +656,136 @@ class BotInteractivo:
                     num = self.senal_actual['numero']
                 else:
                     num = int(cmd.split()[1])
-                
-                if self.historial.marcar_resultado(num, 'GANADA'):
-                    print(f"\n  ✅ Señal #{num} marcada como GANADA!")
-                    if TELEGRAM_ACTIVO:
-                        enviar_telegram(f"✅ Señal #{num} GANADA!")
+                if self.historial.marcar(num, 'GANADA'):
+                    print(f"\n  ✅ #{num} GANADA!")
                 else:
-                    print(f"\n  ❌ No se encontró la señal #{num}")
+                    print(f"\n  ❌ No encontré #{num}")
             except:
-                print("\n  ❌ Uso: g [número] - Ejemplo: g 5")
+                print("\n  ❌ Uso: g o g [número]")
         
-        elif cmd.startswith('p') and (cmd == 'p' or cmd.startswith('p ')):
+        elif cmd.startswith('p') and (cmd == 'p' or ' ' in cmd):
             try:
                 if cmd == 'p' and self.senal_actual:
                     num = self.senal_actual['numero']
                 else:
                     num = int(cmd.split()[1])
-                
-                if self.historial.marcar_resultado(num, 'PERDIDA'):
-                    print(f"\n  ❌ Señal #{num} marcada como PERDIDA")
-                    if TELEGRAM_ACTIVO:
-                        enviar_telegram(f"❌ Señal #{num} PERDIDA")
+                if self.historial.marcar(num, 'PERDIDA'):
+                    print(f"\n  ❌ #{num} PERDIDA")
                 else:
-                    print(f"\n  ❌ No se encontró la señal #{num}")
+                    print(f"\n  ❌ No encontré #{num}")
             except:
-                print("\n  ❌ Uso: p [número] - Ejemplo: p 5")
+                print("\n  ❌ Uso: p o p [número]")
         
         elif cmd in ['m', 'menu']:
             self.mostrar_menu()
         
-        elif cmd in ['l', 'limpiar', 'cls', 'clear']:
+        elif cmd in ['c', 'clear', 'cls']:
             limpiar()
             self.mostrar_encabezado()
         
-        else:
-            if cmd:
-                print(f"\n  ❓ Comando no reconocido: '{cmd}'")
-                print("  💡 Escribe 'm' para ver el menú")
+        elif cmd:
+            print(f"\n  ❓ '{cmd}' no reconocido. Escribe 'm' para menú")
         
         return True
     
-    async def procesar_mensaje(self, msg: str):
+    async def procesar_ws(self, msg):
         try:
             data = json.loads(msg)
-            nombre = data.get('name', '')
-            m = data.get('msg', {})
-            
-            if nombre == 'candle-generated':
+            if data.get('name') == 'candle-generated':
+                m = data.get('msg', {})
                 aid = m.get('active_id', 0)
-                close = m.get('close', 0)
-                if close:
-                    self.precios[aid] = close
+                if m.get('close'):
+                    self.precios[aid] = m['close']
                     self.analizador.agregar_vela(aid, m)
-            
-            elif nombre == 'traders-mood-changed':
-                aid = m.get('asset_id', 0)
-                inst = m.get('instrument', '')
-                valor = m.get('value', 0.5)
-                
-                if 'blitz' in inst.lower():
-                    return
-                
-                self.sentimientos[aid] = valor * 100
-                
-                # Evaluar señal
-                senal = self.evaluar_senal(aid)
-                if senal:
-                    self.candidatas[aid] = senal
-                    
-                    # Si modo auto, mostrar automáticamente
-                    if self.modo_auto and senal['puntuacion'] >= 85:
-                        senal_mostrada = self.mostrar_senal(senal)
-                        self.historial.agregar(senal_mostrada)
-                        self.senal_actual = senal_mostrada
-                        if aid in self.candidatas:
-                            del self.candidatas[aid]
-                        
         except:
             pass
     
     def mostrar_encabezado(self):
         print("\n")
-        print("╔" + "═" * 66 + "╗")
-        print("║" + " " * 66 + "║")
-        print("║     🎯  BOT MEAN REVERSION - BULLEX  🎯" + " " * 24 + "║")
-        print("║" + " " * 66 + "║")
-        print("╠" + "═" * 66 + "╣")
-        print(f"║  🕐 Hora:           {fmt_hora()} (Rep. Dominicana){' ' * 18}║")
-        print(f"║  📅 Fecha:          {fmt_fecha():<44}║")
-        print("╠" + "═" * 66 + "╣")
-        print("║  📊 ESTRATEGIA MEAN REVERSION:" + " " * 33 + "║")
-        print(f"║     • EMA: {Config.EMA_PERIODO} periodos{' ' * 43}║")
-        print(f"║     • RSI: ≤{Config.RSI_SOBREVENTA} (CALL) / ≥{Config.RSI_SOBRECOMPRA} (PUT){' ' * 28}║")
-        print(f"║     • Bollinger: {Config.BB_PERIODO},{Config.BB_STD}{' ' * 39}║")
-        print(f"║     • Max trades/par: {Config.MAX_TRADES_POR_PAR}{' ' * 36}║")
-        print("╠" + "═" * 66 + "╣")
-        print("║  💡 Escribe 'm' para ver el menú" + " " * 31 + "║")
-        print("╚" + "═" * 66 + "╝")
+        print("╔" + "═" * 60 + "╗")
+        print("║  🎯 BOT MEAN REVERSION - ANÁLISIS TÉCNICO" + " " * 16 + "║")
+        print("╠" + "═" * 60 + "╣")
+        print(f"║  🕐 {fmt_hora()} | 📅 {fmt_fecha():<38}║")
+        print("╠" + "═" * 60 + "╣")
+        print("║  📊 Estrategia: Reversión a la Media" + " " * 21 + "║")
+        print("║     • RSI ≤30 → CALL (sobreventa)" + " " * 24 + "║")
+        print("║     • RSI ≥70 → PUT (sobrecompra)" + " " * 24 + "║")
+        print("║     • Bollinger + Velas de rechazo" + " " * 23 + "║")
+        print("╠" + "═" * 60 + "╣")
+        print("║  💡 Escribe '1' para buscar señal, 'm' para menú" + " " * 9 + "║")
+        print("╚" + "═" * 60 + "╝")
     
-    async def loop_entrada(self):
+    async def loop_input(self):
         loop = asyncio.get_event_loop()
-        
         while self.ejecutando:
             try:
-                cmd = await loop.run_in_executor(None, lambda: input("\n  👉 Comando: "))
-                
-                if not self.procesar_comando(cmd):
+                cmd = await loop.run_in_executor(None, lambda: input("\n  👉 "))
+                if not self.comando(cmd):
                     self.ejecutando = False
-                    break
-                    
-            except EOFError:
-                break
             except:
                 pass
     
-    async def loop_websocket(self):
+    async def loop_ws(self):
         while self.ejecutando and self.conectado:
             try:
                 msg = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
-                await self.procesar_mensaje(msg)
+                await self.procesar_ws(msg)
             except asyncio.TimeoutError:
                 pass
-            except websockets.exceptions.ConnectionClosed:
-                print("\n  ⚠️ Conexión perdida. Reconectando...")
-                if await self.conectar():
-                    continue
-                else:
-                    break
             except:
-                pass
+                if self.ejecutando:
+                    print("\n  ⚠️ Reconectando...")
+                    await self.conectar()
     
     async def ejecutar(self):
         if not await self.conectar():
-            print("\n  ❌ No se pudo conectar. Verifica tu SSID.")
             return
         
         limpiar()
         self.mostrar_encabezado()
-        self.mostrar_estadisticas()
+        self.mostrar_stats()
         self.mostrar_menu()
         
+        print("\n  ⏳ Recolectando datos de mercado...")
+        print("  💡 Espera ~30 seg antes de pedir la primera señal\n")
+        
         try:
-            await asyncio.gather(
-                self.loop_websocket(),
-                self.loop_entrada()
-            )
+            await asyncio.gather(self.loop_ws(), self.loop_input())
         except:
             pass
         
-        print("\n\n" + "═" * 66)
-        print("  📊 RESUMEN FINAL")
-        print("═" * 66)
-        self.mostrar_estadisticas()
-        
-        if TELEGRAM_ACTIVO:
-            stats = self.historial.estadisticas()
-            enviar_telegram(f"👋 <b>Bot Cerrado</b>\n\nPrecisión: {stats['precision']:.1f}%\nGanadas: {stats['ganadas']}\nPerdidas: {stats['perdidas']}")
-        
+        print("\n" + "═" * 60)
+        self.mostrar_stats()
         if self.ws:
             await self.ws.close()
-        
-        print(f"\n  👋 ¡Hasta pronto! - {fmt_hora()}")
-        print("═" * 66 + "\n")
+        print(f"\n  👋 ¡Hasta pronto! - {fmt_hora()}\n")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#                              PUNTO DE ENTRADA
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def mostrar_bienvenida():
-    print("""
-╔══════════════════════════════════════════════════════════════════════╗
-║                                                                      ║
-║     🎯  BOT MEAN REVERSION - ESTRATEGIA OTC  🎯                      ║
-║                                                                      ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   📊 ESTRATEGIA:                                                     ║
-║      • Espera que el precio se estire a un extremo                   ║
-║      • RSI ≤25 (sobreventa) → CALL                                   ║
-║      • RSI ≥75 (sobrecompra) → PUT                                   ║
-║      • Confirmación con vela de freno                                ║
-║      • Filtro de mercado volátil                                     ║
-║                                                                      ║
-║   📱 TELEGRAM: Alertas automáticas                                   ║
-║                                                                      ║
-║   📋 COMANDOS:                                                       ║
-║      [1] Pedir señal    [g] Ganada    [p] Perdida    [q] Salir       ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
-""")
-
 
 async def main():
-    mostrar_bienvenida()
+    print("""
+╔════════════════════════════════════════════════════════════════╗
+║  🎯 BOT MEAN REVERSION - ANÁLISIS TÉCNICO PURO                ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  ✅ Sin sentimiento - Solo indicadores técnicos               ║
+║  ✅ RSI + Bollinger + Velas de rechazo                        ║
+║  ✅ Busca reversiones a la media                              ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+""")
     
-    ssid = MI_SSID.strip()
-    
+    ssid = MI_SSID.strip() or input("  🔑 SSID: ").strip()
     if not ssid:
-        ssid = input("  🔑 SSID: ").strip()
-    
-    if not ssid:
-        print("\n  ❌ Necesitas un SSID válido.")
+        print("\n  ❌ SSID requerido")
         return
     
-    bot = BotInteractivo(ssid)
-    await bot.ejecutar()
+    await Bot(ssid).ejecutar()
 
 
 if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\n  👋 Bot detenido\n")
+        print("\n\n  👋 Cerrado\n")
