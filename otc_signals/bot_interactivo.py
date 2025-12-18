@@ -66,27 +66,27 @@ class Config:
     # ══════════ INDICADORES MEAN REVERSION ══════════
     EMA_PERIODO = 20           # EMA 20 (la media)
     RSI_PERIODO = 14           # RSI 14
-    RSI_SOBREVENTA = 25        # RSI ≤ 25 para CALL
-    RSI_SOBRECOMPRA = 75       # RSI ≥ 75 para PUT
+    RSI_SOBREVENTA = 35        # RSI ≤ 35 para CALL (más flexible)
+    RSI_SOBRECOMPRA = 65       # RSI ≥ 65 para PUT (más flexible)
     BB_PERIODO = 20            # Bollinger Bands periodo
     BB_STD = 2                 # Bollinger Bands desviación
     
     # ══════════ FILTROS ══════════
-    UMBRAL_SENTIMIENTO = 65    # Sentimiento mínimo (más bajo porque usamos mean reversion)
-    MIN_VELAS = 25             # Mínimo de velas para analizar
+    UMBRAL_SENTIMIENTO = 75    # Sentimiento mínimo 75%
+    MIN_VELAS = 10             # Mínimo de velas para analizar (reducido)
     
     # ══════════ FILTRO VOLATILIDAD ══════════
-    MAX_VELA_RATIO = 2.5       # Rechazar si vela es 2.5x más grande que promedio
-    VELAS_GRANDES_MAX = 2      # Máx velas grandes seguidas permitidas
+    MAX_VELA_RATIO = 3.0       # Rechazar si vela es 3x más grande que promedio
+    VELAS_GRANDES_MAX = 3      # Máx velas grandes seguidas permitidas
     
     # ══════════ GESTIÓN DE RIESGO ══════════
-    MAX_TRADES_POR_PAR = 2     # Máximo 2 trades por par
-    PAUSA_TRAS_PERDIDAS = 2    # Pausar tras 2 pérdidas seguidas
-    TIEMPO_PAUSA = 900         # 15 minutos de pausa (en segundos)
+    MAX_TRADES_POR_PAR = 5     # Máximo 5 trades por par
+    PAUSA_TRAS_PERDIDAS = 3    # Pausar tras 3 pérdidas seguidas
+    TIEMPO_PAUSA = 600         # 10 minutos de pausa (en segundos)
     
     # ══════════ TIEMPOS ══════════
     DURACION_OPERACION = 1     # 1 minuto expiración
-    COOLDOWN_ACTIVO = 120      # 2 min entre señales del mismo activo
+    COOLDOWN_ACTIVO = 60       # 1 min entre señales del mismo activo
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -367,152 +367,133 @@ class AnalizadorMeanReversion:
     
     def analizar_mean_reversion(self, aid: int, sentimiento_pct: float = None) -> Optional[dict]:
         """
-        Analiza usando estrategia Mean Reversion.
+        Analiza usando estrategia Mean Reversion + Sentimiento.
         
-        CALL si:
-        - Precio < EMA20 (estirado abajo)
-        - RSI ≤ 25 (sobreventa)
-        - Precio cerca/toca banda inferior
-        - Vela de freno detectada
-        - Confirmación: no nuevo mínimo
-        - Mercado tranquilo
+        PRIORIDAD 1 - Mean Reversion:
+        - RSI en extremos + precio alejado de EMA
         
-        PUT si:
-        - Precio > EMA20 (estirado arriba)
-        - RSI ≥ 75 (sobrecompra)
-        - Precio cerca/toca banda superior
-        - Vela de freno detectada
-        - Confirmación: no nuevo máximo
-        - Mercado tranquilo
+        PRIORIDAD 2 - Sentimiento Fuerte:
+        - Si sentimiento ≥ 75%, genera señal
         """
         velas = self.velas.get(aid, [])
         
-        if len(velas) < Config.MIN_VELAS:
-            return None
-        
-        # Datos
-        precios_close = [v['close'] for v in velas]
-        precio_actual = precios_close[-1]
-        
-        # Calcular indicadores
-        ema20 = self.calcular_ema(precios_close, Config.EMA_PERIODO)
-        rsi = self.calcular_rsi(precios_close, Config.RSI_PERIODO)
-        bb_upper, bb_middle, bb_lower = self.calcular_bollinger(
-            precios_close, Config.BB_PERIODO, Config.BB_STD
-        )
-        
-        if bb_upper is None:
-            return None
-        
-        # Filtrar mercado loco
-        es_tranquilo, razon_mercado = self.filtrar_mercado_loco(velas)
-        if not es_tranquilo:
-            return None
-        
-        # Determinar dirección y verificar condiciones
         razones = []
         direccion = None
         puntuacion = 0
+        rsi = 50
+        precio_vs_ema = "N/A"
+        bollinger_pos = "N/A"
         
-        # ═══════════ ANÁLISIS PARA CALL (rebote desde abajo) ═══════════
-        if precio_actual < ema20:
-            # Precio por debajo de EMA20 ✓
-            diff_ema = ((ema20 - precio_actual) / ema20) * 100
-            
-            if rsi <= Config.RSI_SOBREVENTA:
-                # RSI en sobreventa ✓
-                
-                # Verificar cercanía a banda inferior
-                dist_lower = ((precio_actual - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
-                
-                if dist_lower <= 15:  # Está en el 15% inferior
-                    # Verificar vela de freno
-                    tiene_freno = self.detectar_vela_freno(velas, "CALL")
-                    
-                    # Verificar confirmación
-                    tiene_confirmacion = self.confirmar_no_nuevo_extremo(velas, "CALL")
-                    
-                    if tiene_freno or tiene_confirmacion:
-                        direccion = "CALL"
-                        puntuacion = 85
-                        
-                        razones.append(f"✅ Precio {diff_ema:.2f}% debajo de EMA20")
-                        razones.append(f"✅ RSI en sobreventa: {rsi:.1f} (≤{Config.RSI_SOBREVENTA})")
-                        razones.append(f"✅ Precio en zona inferior Bollinger")
-                        
-                        if tiene_freno:
-                            razones.append(f"✅ Vela de freno detectada")
-                            puntuacion += 5
-                        
-                        if tiene_confirmacion:
-                            razones.append(f"✅ Confirmación: no nuevo mínimo")
-                            puntuacion += 5
-                        
-                        razones.append(f"✅ {razon_mercado}")
-        
-        # ═══════════ ANÁLISIS PARA PUT (rebote desde arriba) ═══════════
-        elif precio_actual > ema20:
-            # Precio por encima de EMA20 ✓
-            diff_ema = ((precio_actual - ema20) / ema20) * 100
-            
-            if rsi >= Config.RSI_SOBRECOMPRA:
-                # RSI en sobrecompra ✓
-                
-                # Verificar cercanía a banda superior
-                dist_upper = ((bb_upper - precio_actual) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
-                
-                if dist_upper <= 15:  # Está en el 15% superior
-                    # Verificar vela de freno
-                    tiene_freno = self.detectar_vela_freno(velas, "PUT")
-                    
-                    # Verificar confirmación
-                    tiene_confirmacion = self.confirmar_no_nuevo_extremo(velas, "PUT")
-                    
-                    if tiene_freno or tiene_confirmacion:
-                        direccion = "PUT"
-                        puntuacion = 85
-                        
-                        razones.append(f"✅ Precio {diff_ema:.2f}% encima de EMA20")
-                        razones.append(f"✅ RSI en sobrecompra: {rsi:.1f} (≥{Config.RSI_SOBRECOMPRA})")
-                        razones.append(f"✅ Precio en zona superior Bollinger")
-                        
-                        if tiene_freno:
-                            razones.append(f"✅ Vela de freno detectada")
-                            puntuacion += 5
-                        
-                        if tiene_confirmacion:
-                            razones.append(f"✅ Confirmación: no nuevo máximo")
-                            puntuacion += 5
-                        
-                        razones.append(f"✅ {razon_mercado}")
-        
-        # Si no cumple condiciones de mean reversion, no hay señal
-        if direccion is None:
-            return None
-        
-        # Bonus por sentimiento si está disponible
+        # ═══════════ ESTRATEGIA 1: SENTIMIENTO FUERTE ═══════════
+        # Si el sentimiento es muy fuerte, usarlo directamente
         if sentimiento_pct is not None:
-            if direccion == "CALL" and sentimiento_pct > 50:
+            if sentimiento_pct >= Config.UMBRAL_SENTIMIENTO:
+                direccion = "CALL"
                 sent_fuerza = sentimiento_pct
-            elif direccion == "PUT" and sentimiento_pct < 50:
+                puntuacion = 70 + (sentimiento_pct - 75)  # 70-95 pts
+                razones.append(f"✅ Sentimiento CALL: {sent_fuerza:.0f}%")
+            elif sentimiento_pct <= (100 - Config.UMBRAL_SENTIMIENTO):
+                direccion = "PUT"
                 sent_fuerza = 100 - sentimiento_pct
-            else:
-                sent_fuerza = 50
+                puntuacion = 70 + (sent_fuerza - 75)
+                razones.append(f"✅ Sentimiento PUT: {sent_fuerza:.0f}%")
+        
+        # ═══════════ ESTRATEGIA 2: MEAN REVERSION (BONUS) ═══════════
+        # Si tenemos suficientes velas, añadir análisis técnico
+        if len(velas) >= Config.MIN_VELAS:
+            precios_close = [v['close'] for v in velas]
+            precio_actual = precios_close[-1]
             
-            if sent_fuerza >= Config.UMBRAL_SENTIMIENTO:
-                puntuacion += 5
-                razones.append(f"✅ Sentimiento confirma: {sent_fuerza:.0f}%")
+            # Calcular indicadores
+            ema20 = self.calcular_ema(precios_close, Config.EMA_PERIODO)
+            rsi = self.calcular_rsi(precios_close, Config.RSI_PERIODO)
+            bb_upper, bb_middle, bb_lower = self.calcular_bollinger(
+                precios_close, Config.BB_PERIODO, Config.BB_STD
+            )
+            
+            if ema20 and precio_actual:
+                diff_ema = ((precio_actual - ema20) / ema20) * 100
+                precio_vs_ema = f"{'Debajo' if precio_actual < ema20 else 'Encima'} ({abs(diff_ema):.2f}%)"
+            
+            # Verificar mercado tranquilo
+            es_tranquilo, razon_mercado = self.filtrar_mercado_loco(velas)
+            
+            # ═══════════ CALL - Rebote desde abajo ═══════════
+            if direccion == "CALL" or (direccion is None and sentimiento_pct and sentimiento_pct > 50):
+                if precio_actual < ema20:
+                    puntuacion += 5
+                    razones.append(f"✅ Precio debajo de EMA20")
+                
+                if rsi <= Config.RSI_SOBREVENTA:
+                    puntuacion += 10
+                    razones.append(f"✅ RSI sobreventa: {rsi:.1f}")
+                elif rsi <= 45:
+                    puntuacion += 5
+                    razones.append(f"➡️ RSI bajo: {rsi:.1f}")
+                
+                if bb_lower and precio_actual:
+                    dist_lower = ((precio_actual - bb_lower) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
+                    if dist_lower <= 30:
+                        puntuacion += 5
+                        razones.append(f"✅ Cerca de banda inferior")
+                        bollinger_pos = "Inferior"
+                
+                if self.detectar_vela_freno(velas, "CALL"):
+                    puntuacion += 5
+                    razones.append(f"✅ Vela de freno detectada")
+                
+                if es_tranquilo:
+                    puntuacion += 3
+                    razones.append(f"✅ {razon_mercado}")
+                
+                if direccion is None and puntuacion >= 70:
+                    direccion = "CALL"
+            
+            # ═══════════ PUT - Rebote desde arriba ═══════════
+            elif direccion == "PUT" or (direccion is None and sentimiento_pct and sentimiento_pct < 50):
+                if precio_actual > ema20:
+                    puntuacion += 5
+                    razones.append(f"✅ Precio encima de EMA20")
+                
+                if rsi >= Config.RSI_SOBRECOMPRA:
+                    puntuacion += 10
+                    razones.append(f"✅ RSI sobrecompra: {rsi:.1f}")
+                elif rsi >= 55:
+                    puntuacion += 5
+                    razones.append(f"➡️ RSI alto: {rsi:.1f}")
+                
+                if bb_upper and precio_actual:
+                    dist_upper = ((bb_upper - precio_actual) / (bb_upper - bb_lower)) * 100 if bb_upper != bb_lower else 50
+                    if dist_upper <= 30:
+                        puntuacion += 5
+                        razones.append(f"✅ Cerca de banda superior")
+                        bollinger_pos = "Superior"
+                
+                if self.detectar_vela_freno(velas, "PUT"):
+                    puntuacion += 5
+                    razones.append(f"✅ Vela de freno detectada")
+                
+                if es_tranquilo:
+                    puntuacion += 3
+                    razones.append(f"✅ {razon_mercado}")
+                
+                if direccion is None and puntuacion >= 70:
+                    direccion = "PUT"
+        
+        # Si no hay señal válida
+        if direccion is None or puntuacion < 70:
+            return None
         
         return {
             'direccion': direccion,
-            'puntuacion': puntuacion,
+            'puntuacion': min(puntuacion, 99),
             'rsi': f"{rsi:.1f}",
-            'precio_vs_ema': f"{'Debajo' if precio_actual < ema20 else 'Encima'} ({abs((precio_actual-ema20)/ema20*100):.2f}%)",
-            'bollinger_pos': f"{'Inferior' if direccion == 'CALL' else 'Superior'}",
+            'precio_vs_ema': precio_vs_ema,
+            'bollinger_pos': bollinger_pos,
             'razones': razones,
-            'ema20': ema20,
-            'bb_upper': bb_upper,
-            'bb_lower': bb_lower
+            'ema20': 0,
+            'bb_upper': 0,
+            'bb_lower': 0
         }
 
 
