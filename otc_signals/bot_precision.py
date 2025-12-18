@@ -55,7 +55,7 @@ import time
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # 👇 PEGA TU SSID AQUÍ:
-MI_SSID = ""
+MI_SSID = "e8b7b6185348833f922e675fe840fc3f"
 
 # URLs
 WS_URL = "wss://ws.trade.bull-ex.com/echo/websocket"
