@@ -32,10 +32,10 @@ import time
 
 MI_SSID = "e8b7b6185348833f922e675fe840fc3f"
 
-# TELEGRAM (desactivado hasta tener token válido)
-TELEGRAM_TOKEN = ""
+# TELEGRAM
+TELEGRAM_TOKEN = "8406117917:AAEJ7s3ecN7Ww8r_xrtMRVlDk1z8E2VHdtU"
 TELEGRAM_CHAT_ID = "5495826471"
-TELEGRAM_ACTIVO = False
+TELEGRAM_ACTIVO = True
 
 WS_URL = "wss://ws.trade.bull-ex.com/echo/websocket"
 HISTORIAL_FILE = "historial_tecnico.json"
