@@ -1,0 +1,56 @@
+============================================================
+ESTADÍSTICAS DEL LOTO DE LEIDSA
+============================================================
+
+Total de sorteos analizados: 10
+
+NÚMEROS MÁS FRECUENTES:
+  Número  5:   2 veces (3.33%)
+  Número 12:   2 veces (3.33%)
+  Número 18:   2 veces (3.33%)
+  Número 23:   2 veces (3.33%)
+  Número 29:   2 veces (3.33%)
+  Número 35:   2 veces (3.33%)
+  Número  3:   2 veces (3.33%)
+  Número  8:   2 veces (3.33%)
+  Número 15:   2 veces (3.33%)
+  Número 22:   2 veces (3.33%)
+
+NÚMEROS MENOS FRECUENTES:
+  Número  6:   1 veces (1.67%)
+  Número 20:   1 veces (1.67%)
+  Número  4:   1 veces (1.67%)
+  Número 10:   1 veces (1.67%)
+  Número 16:   1 veces (1.67%)
+  Número 21:   1 veces (1.67%)
+  Número 27:   1 veces (1.67%)
+  Número 33:   1 veces (1.67%)
+  Número  9:   1 veces (1.67%)
+  Número  1:   1 veces (1.67%)
+
+DISTRIBUCIÓN POR RANGOS:
+  1-10:  14 números (23.33%)
+  11-20:  16 números (26.67%)
+  21-30:  16 números (26.67%)
+  31-38:  14 números (23.33%)
+
+ESTADÍSTICAS DE SUMAS:
+  Promedio: 121.50
+  Mediana: 121.00
+  Mínimo: 109
+  Máximo: 135
+  Desviación estándar: 10.15
+
+PARES DE NÚMEROS MÁS FRECUENTES:
+  ( 5, 12): 2 veces
+  ( 5, 18): 2 veces
+  (12, 18): 2 veces
+  (23, 29): 2 veces
+  (23, 35): 2 veces
+  (29, 35): 2 veces
+  ( 3,  8): 2 veces
+  (15, 22): 2 veces
+  (15, 28): 2 veces
+  (15, 34): 2 veces
+
+============================================================
