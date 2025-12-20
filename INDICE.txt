@@ -1,0 +1,162 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                                                                    ║
+║   📚 GUÍA RÁPIDA - ¿QUÉ ARCHIVO DEBO LEER?                       ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────┐
+│  🎯 QUIERO VER LOS NÚMEROS PARA JUGAR HOY                         │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: JUGADAS_HOY.txt
+   
+   📋 Contiene:
+      • Las 3 mejores combinaciones recomendadas
+      • Números más frecuentes
+      • Números calientes
+      • Formato visual fácil de leer
+
+   ⏱️  Tiempo de lectura: 2 minutos
+
+┌────────────────────────────────────────────────────────────────────┐
+│  📊 QUIERO VER TODAS LAS ESTADÍSTICAS COMPLETAS                   │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: RESUMEN_NUMEROS_LOTO.txt
+   
+   📋 Contiene:
+      • 5 combinaciones diferentes recomendadas
+      • Top 15 números más frecuentes con gráficas
+      • Números calientes y fríos
+      • Consejos y estrategias
+      • 3 opciones personales (A, B, C)
+      • Información completa del juego
+
+   ⏱️  Tiempo de lectura: 5-7 minutos
+
+┌────────────────────────────────────────────────────────────────────┐
+│  📱 QUIERO UNA GUÍA PRÁCTICA PARA USAR                            │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: NUMEROS_RECOMENDADOS.md
+   
+   📋 Contiene:
+      • Explicación de cómo funciona el Loto Leidsa
+      • Cómo usar el análisis estadístico
+      • Estrategias de juego
+      • Información práctica (dónde jugar, horarios, etc.)
+      • Formato Markdown fácil de leer
+
+   ⏱️  Tiempo de lectura: 8-10 minutos
+
+┌────────────────────────────────────────────────────────────────────┐
+│  🔬 QUIERO EL ANÁLISIS TÉCNICO DETALLADO                          │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: ANALISIS_LOTO_LEIDSA.md
+   
+   📋 Contiene:
+      • Análisis estadístico profesional
+      • Tablas de frecuencia detalladas
+      • Distribución par/impar
+      • Metodología del análisis
+      • Formato técnico con tablas
+
+   ⏱️  Tiempo de lectura: 10-15 minutos
+
+┌────────────────────────────────────────────────────────────────────┐
+│  💻 SOY PROGRAMADOR - QUIERO LOS DATOS                            │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: analisis_loto_leidsa.json o lottery_data.json
+   
+   📋 Contiene:
+      • Todos los datos en formato JSON
+      • 50 sorteos históricos
+      • Estadísticas calculadas
+      • Listo para procesamiento programático
+
+   ⏱️  Tiempo: Importar y procesar
+
+┌────────────────────────────────────────────────────────────────────┐
+│  🛠️  QUIERO SABER CÓMO FUNCIONA TODO ESTO                         │
+└────────────────────────────────────────────────────────────────────┘
+
+   👉 Lee: README.md
+   
+   📋 Contiene:
+      • Explicación del proyecto
+      • Cómo ejecutar los scripts
+      • Qué hace cada archivo
+      • Cómo actualizar con nuevos sorteos
+      • Información técnica
+
+   ⏱️  Tiempo de lectura: 5 minutos
+
+╔════════════════════════════════════════════════════════════════════╗
+║  📂 TODOS LOS ARCHIVOS DISPONIBLES                                ║
+╚════════════════════════════════════════════════════════════════════╝
+
+📄 PARA USUARIOS (Lectura):
+   ✅ JUGADAS_HOY.txt ...................... Jugadas recomendadas HOY
+   ✅ RESUMEN_NUMEROS_LOTO.txt ............. Resumen completo
+   ✅ NUMEROS_RECOMENDADOS.md .............. Guía práctica
+   ✅ ANALISIS_LOTO_LEIDSA.md .............. Análisis técnico
+   ✅ README.md ............................ Documentación
+   ✅ INDICE.txt (este archivo) ............ Guía de navegación
+
+💾 DATOS:
+   📊 lottery_data.json .................... Base de datos (50 sorteos)
+   📊 analisis_loto_leidsa.json ............ Resultados del análisis
+
+🔧 SCRIPTS (Para programadores):
+   🐍 leidsa_lottery_scraper.py ........... Recopila datos
+   🐍 analyze_lottery.py .................. Genera análisis
+   🐍 actualizar_analisis.py .............. Actualiza con nuevos sorteos
+
+╔════════════════════════════════════════════════════════════════════╗
+║  🚀 INICIO RÁPIDO                                                  ║
+╚════════════════════════════════════════════════════════════════════╝
+
+1️⃣  Si solo quieres números para jugar:
+    → Abre JUGADAS_HOY.txt
+
+2️⃣  Si quieres entender las estadísticas:
+    → Abre RESUMEN_NUMEROS_LOTO.txt
+
+3️⃣  Si quieres agregar un nuevo sorteo:
+    → Ejecuta: python3 actualizar_analisis.py
+
+╔════════════════════════════════════════════════════════════════════╗
+║  ⚡ COMANDOS ÚTILES                                                ║
+╚════════════════════════════════════════════════════════════════════╝
+
+# Ver las jugadas del día
+cat JUGADAS_HOY.txt
+
+# Ver resumen completo
+cat RESUMEN_NUMEROS_LOTO.txt
+
+# Regenerar análisis
+python3 analyze_lottery.py
+
+# Agregar nuevo sorteo
+python3 actualizar_analisis.py
+
+# Ver último sorteo registrado
+python3 actualizar_analisis.py --ultimo
+
+╔════════════════════════════════════════════════════════════════════╗
+║                                                                    ║
+║  🎰 INFORMACIÓN DEL LOTO LEIDSA                                   ║
+║                                                                    ║
+║  📍 Web: www.leidsa.com                                           ║
+║  📞 Tel: 809-200-8000                                             ║
+║  🎲 Juego: 6 números del 1 al 38                                  ║
+║  📅 Sorteos: Miércoles y Sábados                                  ║
+║                                                                    ║
+║  🍀 ¡BUENA SUERTE!                                                ║
+║                                                                    ║
+╚════════════════════════════════════════════════════════════════════╝
+
+Última actualización: Diciembre 2025

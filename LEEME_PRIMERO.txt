@@ -1,0 +1,243 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║              🎰 ANÁLISIS LOTO LEIDSA - LÉEME PRIMERO 🎰          ║
+║                      República Dominicana                         ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                                                   ┃
+┃  👋 ¡HOLA! AQUÍ ESTÁN TUS NÚMEROS PARA EL LOTO LEIDSA           ┃
+┃                                                                   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+🚀 INICIO RÁPIDO - 3 PASOS:
+═══════════════════════════════════════════════════════════════════
+
+  1️⃣  Abre el archivo: JUGADAS_HOY.txt
+     (Ahí están las 3 mejores combinaciones para jugar)
+
+  2️⃣  Elige UNA de las 3 combinaciones recomendadas
+
+  3️⃣  Ve a www.leidsa.com o una agencia Leidsa y juega
+
+     ¡Eso es todo! 🎯
+
+
+📂 ¿QUÉ HAY EN ESTA CARPETA?
+═══════════════════════════════════════════════════════════════════
+
+Este análisis incluye varios archivos. Aquí te explico cuál leer:
+
+
+🎯 PARA JUGAR HOY:
+───────────────────────────────────────────────────────────────────
+
+   📄 JUGADAS_HOY.txt .................. ⭐ EMPIEZA AQUÍ ⭐
+      Las 3 mejores combinaciones para jugar hoy
+      Formato visual, fácil de leer
+      ⏱️  2 minutos
+
+   📄 BOLETA_VIRTUAL.txt ............... 5 combinaciones completas
+      Formato tipo boleta de lotería
+      Incluye tabla de todos los números
+      ⏱️  3 minutos
+
+
+📊 PARA VER ESTADÍSTICAS:
+───────────────────────────────────────────────────────────────────
+
+   📄 RESUMEN_NUMEROS_LOTO.txt ......... Análisis completo
+      Top 15 números más frecuentes
+      Números calientes y fríos
+      5 combinaciones diferentes
+      Consejos y estrategias
+      ⏱️  5-7 minutos
+
+   📄 NUMEROS_RECOMENDADOS.md .......... Guía práctica
+      Cómo usar el análisis
+      Estrategias de juego
+      Información del Loto Leidsa
+      ⏱️  8-10 minutos
+
+
+📚 DOCUMENTACIÓN:
+───────────────────────────────────────────────────────────────────
+
+   📄 README.md ........................ Documentación completa
+   📄 INDICE.txt ....................... Guía de todos los archivos
+   📄 ANALISIS_LOTO_LEIDSA.md .......... Análisis técnico detallado
+
+
+═══════════════════════════════════════════════════════════════════
+🎯 LAS 3 MEJORES JUGADAS (RESUMEN RÁPIDO)
+═══════════════════════════════════════════════════════════════════
+
+Si no quieres leer nada y solo quieres los números, aquí están:
+
+
+  🥇 JUGADA #1 (CONSERVADORA):
+     
+     12 - 25 - 29 - 35 - 36 - 38
+
+
+  🔥 JUGADA #2 (BALANCEADA) ⭐ RECOMENDADA ⭐:
+     
+     06 - 12 - 24 - 29 - 36 - 37
+
+
+  💎 JUGADA #3 (AGRESIVA):
+     
+     05 - 06 - 08 - 35 - 37 - 38
+
+
+  ➡️  Elige UNA y juégala en www.leidsa.com
+
+
+═══════════════════════════════════════════════════════════════════
+📊 DATOS IMPORTANTES
+═══════════════════════════════════════════════════════════════════
+
+✅ Análisis basado en: 50 sorteos históricos
+✅ Números más frecuentes: 35, 36, 37, 38 (salieron 10 veces)
+✅ Números calientes: 6, 8, 15, 24, 32, 36
+✅ Distribución óptima: 3 pares + 3 impares
+
+
+═══════════════════════════════════════════════════════════════════
+💡 INFORMACIÓN DEL LOTO LEIDSA
+═══════════════════════════════════════════════════════════════════
+
+🎲 Juego: Loto Leidsa
+📊 Rango: Números del 1 al 38
+🎯 Cantidad: Elige 6 números
+📅 Sorteos: Miércoles y Sábados
+🌐 Web: www.leidsa.com
+📞 Teléfono: 809-200-8000 (República Dominicana)
+
+
+═══════════════════════════════════════════════════════════════════
+❓ PREGUNTAS FRECUENTES
+═══════════════════════════════════════════════════════════════════
+
+Q: ¿Estas combinaciones garantizan que ganaré?
+A: No. La lotería es azar. Estas son recomendaciones basadas en
+   estadísticas históricas que muestran TENDENCIAS, no certezas.
+
+Q: ¿Cuál jugada es mejor?
+A: La JUGADA #2 (Balanceada) es la más recomendada porque combina
+   números frecuentes con números calientes recientes.
+
+Q: ¿Puedo combinar números de diferentes jugadas?
+A: ¡Sí! Puedes crear tu propia combinación usando los números más
+   frecuentes. Lee RESUMEN_NUMEROS_LOTO.txt para más detalles.
+
+Q: ¿Dónde juego esto?
+A: En cualquier agencia Leidsa, en www.leidsa.com, o mediante la
+   app móvil de Leidsa.
+
+Q: ¿Cómo puedo actualizar esto con nuevos sorteos?
+A: Ejecuta: python3 actualizar_analisis.py
+   (Necesitas Python instalado)
+
+Q: ¿Los números "calientes" tienen más probabilidad?
+A: Matemáticamente, todos los números tienen la misma probabilidad.
+   Los "calientes" son simplemente los que han salido más veces
+   recientemente, mostrando una tendencia estadística.
+
+
+═══════════════════════════════════════════════════════════════════
+🛠️  ¿QUIERES ACTUALIZAR CON NUEVOS SORTEOS?
+═══════════════════════════════════════════════════════════════════
+
+Si tienes Python instalado, puedes agregar nuevos sorteos:
+
+   1. Abre la terminal
+   2. Ejecuta: python3 actualizar_analisis.py
+   3. Sigue las instrucciones
+   4. Los análisis se regenerarán automáticamente
+
+
+═══════════════════════════════════════════════════════════════════
+⚠️  ADVERTENCIA IMPORTANTE
+═══════════════════════════════════════════════════════════════════
+
+  🎲 La lotería es un juego de AZAR
+  
+  📊 Las estadísticas muestran tendencias pasadas, 
+     NO predicen el futuro
+  
+  💰 Juega RESPONSABLEMENTE
+     No gastes más de lo que puedes permitirte perder
+  
+  📈 Cada sorteo es INDEPENDIENTE
+     Los números pasados no influyen en los futuros
+  
+  🔍 Verifica siempre los resultados oficiales en:
+     www.leidsa.com
+
+
+═══════════════════════════════════════════════════════════════════
+📞 RECURSOS Y CONTACTO
+═══════════════════════════════════════════════════════════════════
+
+🌐 Sitio oficial Leidsa:
+   → www.leidsa.com
+
+📊 Ver resultados:
+   → www.leidsa.com/resultados
+
+📱 App móvil:
+   → Busca "Leidsa" en App Store o Google Play
+
+📞 Servicio al cliente:
+   → 809-200-8000 (República Dominicana)
+
+💬 Redes sociales:
+   → Busca @Leidsa en Facebook, Instagram, Twitter
+
+
+═══════════════════════════════════════════════════════════════════
+🎯 PRÓXIMOS PASOS
+═══════════════════════════════════════════════════════════════════
+
+  ✓ PASO 1: Lee JUGADAS_HOY.txt
+
+  ✓ PASO 2: Elige tu combinación favorita
+
+  ✓ PASO 3: Ve a www.leidsa.com o una agencia
+
+  ✓ PASO 4: Compra tu boleta (juega responsablemente)
+
+  ✓ PASO 5: Espera el sorteo (Miércoles o Sábado)
+
+  ✓ PASO 6: Verifica resultados en www.leidsa.com
+
+  ✓ PASO 7: ¡Cruza los dedos! 🤞
+
+
+╔═══════════════════════════════════════════════════════════════════╗
+║                                                                   ║
+║                     🍀 ¡MUCHA SUERTE! 🍀                          ║
+║                                                                   ║
+║              Que tu combinación sea la ganadora 🏆                ║
+║                                                                   ║
+║               ¡No olvides jugar responsablemente!                 ║
+║                                                                   ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════
+
+Fecha del análisis: 20 de Diciembre, 2025
+Sorteos analizados: 50 sorteos históricos
+Total de números analizados: 300
+
+═══════════════════════════════════════════════════════════════════
+
+¿Necesitas ayuda? Abre el archivo INDICE.txt para una guía completa
+de todos los archivos disponibles.
+
+═══════════════════════════════════════════════════════════════════

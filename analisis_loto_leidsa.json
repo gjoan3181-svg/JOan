@@ -1,0 +1,248 @@
+{
+  "fecha_analisis": "2025-12-20 21:08:39",
+  "estadisticas": {
+    "most_common": [
+      [
+        35,
+        10
+      ],
+      [
+        37,
+        10
+      ],
+      [
+        36,
+        10
+      ],
+      [
+        38,
+        10
+      ],
+      [
+        12,
+        9
+      ],
+      [
+        29,
+        9
+      ],
+      [
+        28,
+        9
+      ],
+      [
+        25,
+        9
+      ],
+      [
+        31,
+        9
+      ],
+      [
+        24,
+        9
+      ],
+      [
+        5,
+        8
+      ],
+      [
+        18,
+        8
+      ],
+      [
+        23,
+        8
+      ],
+      [
+        22,
+        8
+      ],
+      [
+        14,
+        8
+      ]
+    ],
+    "least_common": [
+      [
+        8,
+        6
+      ],
+      [
+        16,
+        6
+      ],
+      [
+        10,
+        6
+      ],
+      [
+        17,
+        6
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        1,
+        7
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        4,
+        7
+      ],
+      [
+        11,
+        7
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        7,
+        7
+      ],
+      [
+        15,
+        7
+      ],
+      [
+        3,
+        7
+      ],
+      [
+        32,
+        8
+      ],
+      [
+        26,
+        8
+      ]
+    ],
+    "hot_numbers": [
+      [
+        6,
+        2
+      ],
+      [
+        8,
+        2
+      ],
+      [
+        15,
+        2
+      ],
+      [
+        24,
+        2
+      ],
+      [
+        32,
+        2
+      ],
+      [
+        36,
+        2
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        13,
+        2
+      ],
+      [
+        19,
+        2
+      ],
+      [
+        26,
+        2
+      ]
+    ],
+    "cold_numbers": [
+      8,
+      16,
+      10,
+      17,
+      9,
+      1,
+      6,
+      4,
+      11,
+      2
+    ],
+    "pair_percentage": 50.0,
+    "odd_percentage": 50.0,
+    "total_draws": 50,
+    "total_numbers": 300
+  },
+  "combinaciones_recomendadas": [
+    {
+      "nombre": "Máxima Frecuencia",
+      "numeros": [
+        12,
+        29,
+        35,
+        36,
+        37,
+        38
+      ],
+      "descripcion": "Basada en los números que más han salido históricamente"
+    },
+    {
+      "nombre": "Números Calientes",
+      "numeros": [
+        6,
+        8,
+        35,
+        36,
+        37,
+        38
+      ],
+      "descripcion": "Combinación de números recientes y frecuentes"
+    },
+    {
+      "nombre": "Balanceada Par/Impar",
+      "numeros": [
+        12,
+        29,
+        35,
+        36,
+        37,
+        38
+      ],
+      "descripcion": "Equilibrio entre números pares e impares"
+    },
+    {
+      "nombre": "Dispersión Alta",
+      "numeros": [
+        23,
+        24,
+        28,
+        35,
+        38
+      ],
+      "descripcion": "Números distribuidos en todo el rango"
+    },
+    {
+      "nombre": "Estrategia Mixta",
+      "numeros": [
+        5,
+        6,
+        18,
+        36,
+        37,
+        38
+      ],
+      "descripcion": "Combina tendencias calientes y frecuencia"
+    }
+  ]
+}
